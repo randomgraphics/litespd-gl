@@ -1,0 +1,8 @@
+[submodule "dev/3rd-party/glfw"]
+	path = dev/3rd-party/glfw
+	url = https://github.com/glfw/glfw.git
+	shallow = true
+[submodule "dev/3rd-party/backward-cpp"]
+	path = dev/3rd-party/backward-cpp
+	url = https://github.com/bombela/backward-cpp.git
+	shallow = true
