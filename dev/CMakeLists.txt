@@ -25,6 +25,7 @@ function(build_glad)
     target_include_directories(glad PUBLIC 3rd-party/glad/include)
 endfunction()
 build_glad()
+link_libraries(glad)
 
 # Setup common build flags form samples and tests
 if (MSVC)
@@ -38,6 +39,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Build litespd-gl into a static library
 add_library(litespd-gl-static STATIC lgl.cpp)
+link_libraries(litespd-gl-static)
 
 # Build subfolders
 add_subdirectory(sample)
