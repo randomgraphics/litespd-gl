@@ -45,18 +45,28 @@ SOFTWARE.
 extern "C" __declspec(dllimport) void __stdcall DebugBreak();
 #endif
 
-namespace LITESPD_GL_NAMESPACE {
-
-namespace lgl_details {} // namespace lgl_details
-
 // #include <stb_image.h>
 // #include <stb_image_write.h>
-#include <sstream>
-//#include <fstream>
-#undef pair
-#include <algorithm>
+// #include <fstream>
 #include <atomic>
-#include <stack>
+// #include <stack>
+#include <algorithm>
+#include <stdarg.h>
+
+namespace LITESPD_GL_NAMESPACE {
+
+namespace lgl_details {
+
+std::string format(const char * fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    return buffer;
+}
+
+} // namespace lgl_details
 
 #if LITESPD_GL_ENABLE_DEBUG_BUILD && LITESPD_GL_ENABLE_GLAD
 // -----------------------------------------------------------------------------
@@ -180,8 +190,9 @@ static void initializeOpenGLDebugRuntime() {
                 break;
             }
 
-            std::string s = formatString("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id, source2String(source), type2String(type),
-                                         severity2String(severity), message, dumpCallStack().c_str());
+            std::string s = lgl_details::format("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id,
+                                                source2String(source), type2String(type), severity2String(severity),
+                                                message, LITESPD_GL_BACKTRACE().c_str());
             if (error_)
                 LGI_LOGE("[GL ERROR] %s", s.c_str());
             else if (warning)
@@ -192,12 +203,12 @@ static void initializeOpenGLDebugRuntime() {
     };
 
     if (GLAD_GL_KHR_debug) {
-        GLCHK(glDebugMessageCallback(&OGLDebugOutput::messageCallback, nullptr));
-        GLCHK(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
+        LGI_CHK(glDebugMessageCallback(&OGLDebugOutput::messageCallback, nullptr));
+        LGI_CHK(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
     } else if (GLAD_GL_ARB_debug_output) {
-        GLCHK(glDebugMessageCallbackARB(&OGLDebugOutput::messageCallback, nullptr));
+        LGI_CHK(glDebugMessageCallbackARB(&OGLDebugOutput::messageCallback, nullptr));
         // enable all messages
-        GLCHK(glDebugMessageControlARB(GL_DONT_CARE, // source
+        LGI_CHK(glDebugMessageControlARB(GL_DONT_CARE, // source
                                        GL_DONT_CARE, // type
                                        GL_DONT_CARE, // severity
                                        0,            // count
@@ -262,10 +273,12 @@ static void printGLInfo(bool printExtensionList) {
          << getInt(GL_MAX_SHADER_STORAGE_BLOCK_SIZE) * 4
          << " bytes\n"
             "       Max CS WorkGroup size : "
-         << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2)
+         << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1) << ","
+         << getInt(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2)
          << "\n"
             "      Max CS WorkGroup count : "
-         << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2)
+         << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0) << "," << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1) << ","
+         << getInt(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2)
          << "\n"
             "    Max shader local storage : total="
          << maxsls << ", fast=" << maxslsFast << "\n";
@@ -349,9 +362,7 @@ void TextureObject::attach(GLenum target, GLuint id) {
     glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &maxLevel);
     _desc.mips = (uint32_t) maxLevel + 1;
 
-    int internalFormat = 0;
-    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internalFormat);
-    _desc.format = fromGLInternalFormat(internalFormat);
+    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &_desc.internalFormat);
 
     unbind();
 }
@@ -361,17 +372,18 @@ void TextureObject::attach(GLenum target, GLuint id) {
 void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t m) {
     cleanup();
     _desc.target = GL_TEXTURE_2D;
-    _desc.format = f;
+    _desc.internalFormat = internalFormat;
     _desc.width  = (uint32_t) w;
     _desc.height = (uint32_t) h;
     _desc.depth  = (uint32_t) 1;
     _desc.mips   = (uint32_t) m;
     _owned       = true;
-    GLCHK(glGenTextures(1, &_desc.id));
-    GLCHK(glBindTexture(_desc.target, _desc.id));
+    LGI_CHK(glGenTextures(1, &_desc.id));
+    LGI_CHK(glBindTexture(_desc.target, _desc.id));
     applyDefaultParameters();
-    GLCHK(glTexStorage2D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width, (GLsizei) _desc.height));
-    GLCHK(glBindTexture(_desc.target, 0));
+    LGI_CHK(glTexStorage2D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
+                         (GLsizei) _desc.height));
+    LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
 // -----------------------------------------------------------------------------
@@ -379,17 +391,18 @@ void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t 
 void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, size_t l, size_t m) {
     cleanup();
     _desc.target = GL_TEXTURE_2D_ARRAY;
-    _desc.format = f;
+    _desc.internalFormat = internalFormat;
     _desc.width  = (uint32_t) w;
     _desc.height = (uint32_t) h;
     _desc.depth  = (uint32_t) l;
     _desc.mips   = (uint32_t) m;
     _owned       = true;
-    GLCHK(glGenTextures(1, &_desc.id));
-    GLCHK(glBindTexture(_desc.target, _desc.id));
+    LGI_CHK(glGenTextures(1, &_desc.id));
+    LGI_CHK(glBindTexture(_desc.target, _desc.id));
     applyDefaultParameters();
-    GLCHK(glTexStorage3D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width, (GLsizei) _desc.height, (GLsizei) _desc.depth));
-    GLCHK(glBindTexture(_desc.target, 0));
+    LGI_CHK(glTexStorage3D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
+                         (GLsizei) _desc.height, (GLsizei) _desc.depth));
+    LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
 // -----------------------------------------------------------------------------
@@ -397,18 +410,18 @@ void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, si
 void TextureObject::allocateCube(GLint internalFormat, size_t w, size_t m) {
     cleanup();
     _desc.target = GL_TEXTURE_CUBE_MAP;
-    _desc.format = f;
+    _desc.internalFormat = internalFormat;
     _desc.width  = (uint32_t) w;
     _desc.height = (uint32_t) w;
     _desc.depth  = 6;
     _desc.mips   = (uint32_t) m;
     _owned       = true;
-    GLCHK(glGenTextures(1, &_desc.id));
-    GLCHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _desc.id));
+    LGI_CHK(glGenTextures(1, &_desc.id));
+    LGI_CHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _desc.id));
     applyDefaultParameters();
-    const auto & cd = jedi::getColorFormatDesc(_desc.format);
-    GLCHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width, (GLsizei) _desc.width));
-    GLCHK(glBindTexture(_desc.target, 0));
+    LGI_CHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
+                         (GLsizei) _desc.width));
+    LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
 void TextureObject::applyDefaultParameters() {
@@ -416,41 +429,46 @@ void TextureObject::applyDefaultParameters() {
     LGI_ASSERT(_desc.height > 0);
     LGI_ASSERT(_desc.depth > 0);
     LGI_ASSERT(_desc.mips > 0);
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_BASE_LEVEL, 0));
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, _desc.mips - 1));
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_MIN_FILTER, _desc.mips > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GLCHK(glTexParameteri(_desc.target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_BASE_LEVEL, 0));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, _desc.mips - 1));
+    LGI_CHK(
+        glTexParameteri(_desc.target, GL_TEXTURE_MIN_FILTER, _desc.mips > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 }
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes, const void * pixels) const {
+void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes,
+                              const void * pixels) const {
     if (empty()) return;
-    GLCHKDBG(glBindTexture(_desc.target, _desc.id));
+    LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     auto & cf = getColorFormatDesc(_desc.format);
     LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
-    GLCHKDBG(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, cf.glFormat, cf.glType, pixels));
+    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, cf.glFormat,
+                             cf.glType, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    GLCHK(;);
+    LGI_CHK(;);
 }
 
-void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes, const void * pixels) const {
+void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h,
+                              size_t rowPitchInBytes, const void * pixels) const {
     if (empty()) return;
 
-    GLCHKDBG(glBindTexture(_desc.target, _desc.id));
+    LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     auto & cf = getColorFormatDesc(_desc.format);
     LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
 
-    GLCHKDBG(glTexSubImage3D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLint) layer, (GLsizei) w, (GLsizei) h, 1, cf.glFormat, cf.glType, pixels));
+    LGI_DCHK(glTexSubImage3D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLint) layer, (GLsizei) w, (GLsizei) h,
+                             1, cf.glFormat, cf.glType, pixels));
 
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    GLCHK(;);
+    LGI_CHK(;);
 }
 
 // -----------------------------------------------------------------------------
@@ -466,7 +484,7 @@ jedi::ManagedRawImage TextureObject::getBaseLevelPixels() const {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _desc.target, _desc.id, 0);
         glReadBuffer(GL_COLOR_ATTACHMENT0);
         glReadPixels(0, 0, _desc.width, _desc.height, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
-        GLCHK(;);
+        LGI_CHK(;);
     } else {
         LGI_LOGE("read texture 2D array pixels is not implemented on android yet.");
     }
@@ -477,7 +495,7 @@ jedi::ManagedRawImage TextureObject::getBaseLevelPixels() const {
     glBindTexture(_desc.target, _desc.id);
     glGetTexImage(_desc.target, 0, cf.glFormat, cf.glType, image.data());
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    GLCHK(;);
+    LGI_CHK(;);
 #endif
     return image;
 }
@@ -501,7 +519,7 @@ void SimpleFBO::cleanup() {
 // -----------------------------------------------------------------------------
 //
 void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFormat * colorFormats) {
-    GLCHK(;); // make sure there's no preexisting conditions.
+    LGI_CHK(;); // make sure there's no preexisting conditions.
 
     cleanup(); // release existing buffers.
 
@@ -510,7 +528,7 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
     // create mips array
     while (w > 0 && h > 0 && (0 == levels || _mips.size() < levels)) {
         _mips.push_back({w, h, 0});
-        GLCHK(glGenFramebuffers(1, &_mips.back().fbo));
+        LGI_CHK(glGenFramebuffers(1, &_mips.back().fbo));
         if (w > 0) w >>= 1;
         if (h > 0) h >>= 1;
     };
@@ -522,59 +540,61 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
         _colorTextureTarget   = GL_TEXTURE_2D;
         GLenum drawBuffers[8] = {};
         for (int i = 0; i < COLOR_BUFFER_COUNT; ++i) {
-            GLCHK(glGenTextures(1, &_colors[i].texture));
+            LGI_CHK(glGenTextures(1, &_colors[i].texture));
             auto cf                     = colorFormats[i];
             _colors[i].format           = cf;
             const GLenum internalFormat = getColorFormatDesc(cf).glInternalFormat;
-            GLCHK(glBindTexture(GL_TEXTURE_2D, _colors[i].texture));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint) (levels - 1)));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-            GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-            GLCHK(glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, _mips[0].width, _mips[0].height));
+            LGI_CHK(glBindTexture(GL_TEXTURE_2D, _colors[i].texture));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint) (levels - 1)));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+            LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, _mips[0].width, _mips[0].height));
             for (int l = 0; l < (int) _mips.size(); ++l) {
                 auto & m = _mips[l];
-                GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
-                GLCHK(glFramebufferTexture2D(GL_FRAMEBUFFER, (GLenum) (GL_COLOR_ATTACHMENT0 + i), GL_TEXTURE_2D, _colors[i].texture, l));
+                LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
+                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, (GLenum) (GL_COLOR_ATTACHMENT0 + i), GL_TEXTURE_2D,
+                                             _colors[i].texture, l));
             }
             drawBuffers[i] = (GLenum) (GL_COLOR_ATTACHMENT0 + i);
         }
         for (auto & m : _mips) {
-            GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
-            GLCHK(glDrawBuffers(COLOR_BUFFER_COUNT, drawBuffers));
+            LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
+            LGI_CHK(glDrawBuffers(COLOR_BUFFER_COUNT, drawBuffers));
         }
     } else {
         GLenum none = GL_NONE;
         for (auto & m : _mips) {
-            GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
-            GLCHK(glDrawBuffers(1, &none));
+            LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
+            LGI_CHK(glDrawBuffers(1, &none));
         }
     }
 
     if (HAS_DEPTH) {
         // depth (use texture instead of renderbuffer, since it is very likely that we'll need
         // to read depth data in the future.)
-        GLCHK(glGenTextures(1, &_depth));
-        GLCHK(glBindTexture(GL_TEXTURE_2D, _depth));
+        LGI_CHK(glGenTextures(1, &_depth));
+        LGI_CHK(glBindTexture(GL_TEXTURE_2D, _depth));
         // For OpenGL ES, depth texture works only when the texture is defined with
         // glTexImage2D() using GL_DEPTH_COMPONENT as the internal format, as specified
         // in OES_depth_texture extension.
         // On OpenGL CORE profile though, glTexStorage2D() works just fine.
-        // GLCHK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT, w, h));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint) (_mips.size() - 1)));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GLCHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        // LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT, w, h));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint) (_mips.size() - 1)));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
         for (int l = 0; l < (int) _mips.size(); ++l) {
             auto & m = _mips[l];
-            GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
+            LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
             // Note: switching to 16-bit (GL_UNSIGNED_SHORT) depth buffer gives about 3ms performance boost.
-            GLCHK(glTexImage2D(GL_TEXTURE_2D, l, GL_DEPTH_COMPONENT, m.width, m.height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
-            GLCHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, l));
+            LGI_CHK(glTexImage2D(GL_TEXTURE_2D, l, GL_DEPTH_COMPONENT, m.width, m.height, 0, GL_DEPTH_COMPONENT,
+                               GL_UNSIGNED_INT, nullptr));
+            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, l));
         }
     }
 
@@ -583,12 +603,13 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
     // make sure the FBO is ready to use.
     auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     LGI_CHK(GL_FRAMEBUFFER_COMPLETE == status);
-    GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
 // -----------------------------------------------------------------------------
 //
-static void SaveImageToPNG(const float * pixels, uint32_t w, uint32_t h, uint32_t channels, const std::string & filepath) {
+static void SaveImageToPNG(const float * pixels, uint32_t w, uint32_t h, uint32_t channels,
+                           const std::string & filepath) {
     // convert data to RGB8
     size_t               numPixels = w * h;
     std::vector<uint8_t> rgb8(numPixels * 3);
@@ -615,10 +636,11 @@ static void SaveImageToPNG(const float * pixels, uint32_t w, uint32_t h, uint32_
 
 // -----------------------------------------------------------------------------
 //
-static void saveTextureToFile(uint32_t w, uint32_t h, uint32_t channels, GLenum target, GLenum format, GLenum type, const std::string & filepath) {
+static void saveTextureToFile(uint32_t w, uint32_t h, uint32_t channels, GLenum target, GLenum format, GLenum type,
+                              const std::string & filepath) {
     LGI_LOGI("Save texture content to %s", filepath.c_str());
     std::vector<float> pixels(w * h * channels);
-    GLCHK(glGetTexImage(target, 0, format, type, pixels.data()));
+    LGI_CHK(glGetTexImage(target, 0, format, type, pixels.data()));
 
     // Flip the image vertically, since OpenGL texture is bottom-up.
     std::vector<float> flipped(w * h * channels);
@@ -670,7 +692,7 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
     // create mips array
     while (w > 0 && (0 == levels || _mips.size() < levels)) {
         _mips.push_back({w, {}});
-        GLCHK(glGenFramebuffers(6, _mips.back().fbo));
+        LGI_CHK(glGenFramebuffers(6, _mips.back().fbo));
         w >>= 1;
     };
 
@@ -678,53 +700,57 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
 
     const GLenum internalFormat = getColorFormatDesc(cf).glInternalFormat;
     if (ColorFormat::NONE != cf) {
-        GLCHK(glGenTextures(1, &_color));
-        GLCHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _color));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, (GLint) _mips.size() - 1));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minfilter));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-        GLCHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _mips.size(), internalFormat, (GLsizei) _mips[0].width, (GLsizei) _mips[0].width));
+        LGI_CHK(glGenTextures(1, &_color));
+        LGI_CHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _color));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, (GLint) _mips.size() - 1));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minfilter));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        LGI_CHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _mips.size(), internalFormat, (GLsizei) _mips[0].width,
+                             (GLsizei) _mips[0].width));
         for (int l = 0; l < (int) _mips.size(); ++l) {
             const auto & m = _mips[l];
             for (int i = 0; i < 6; ++i) {
-                GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-                GLCHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, _color, l));
+                LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
+                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                             _color, l));
             }
         }
     } else {
         GLenum none = GL_NONE;
         for (auto & m : _mips) {
             for (int i = 0; i < 6; ++i) {
-                GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-                GLCHK(glDrawBuffers(1, &none));
+                LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
+                LGI_CHK(glDrawBuffers(1, &none));
             }
         }
     }
 
     // depth (use texture instead of renderbuffer, since it is very likely that we'll need
     // to read depth data in the future.)
-    GLCHK(glGenTextures(1, &_depth));
-    GLCHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _depth));
+    LGI_CHK(glGenTextures(1, &_depth));
+    LGI_CHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _depth));
     // For OpenGL ES, depth texture works only when the texture is defined with
     // glTexImage2D() using GL_DEPTH_COMPONENT as the internal format, as specified
     // in OES_depth_texture extension.
     // On OpenGL CORE profile though, glTexStorage2D() works just fine.
-    // GLCHK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT, w, h));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, (GLint) _mips.size() - 1));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minfilter));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GLCHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    // LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT, w, h));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, (GLint) _mips.size() - 1));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minfilter));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
     for (int l = 0; l < (int) _mips.size(); ++l) {
         const auto & m = _mips[l];
         for (int i = 0; i < 6; ++i) {
-            GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-            GLCHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, l, GL_DEPTH_COMPONENT, m.width, m.width, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
-            GLCHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, _depth, l));
+            LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
+            LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, l, GL_DEPTH_COMPONENT, m.width, m.width, 0,
+                               GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
+            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                         _depth, l));
         }
     }
 
@@ -734,14 +760,14 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
     for (int l = 0; l < (int) _mips.size(); ++l) {
         const auto & m = _mips[l];
         for (int i = 0; i < 6; ++i) {
-            GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
+            LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
             auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
             LGI_CHK(GL_FRAMEBUFFER_COMPLETE == status);
         }
     }
 
     // done
-    GLCHK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
 void DebugSSBO::printLastResult() const {
@@ -773,15 +799,15 @@ ScreenQuad & ScreenQuad::allocate() {
     cleanup();
 
     // Create new array.
-    GLCHK(glGenVertexArrays(1, &va));
-    GLCHK(glBindVertexArray(va));
+    LGI_CHK(glGenVertexArrays(1, &va));
+    LGI_CHK(glBindVertexArray(va));
     vb.allocate<Vertex>(6, nullptr);
-    GLCHK(vb.bind());
-    GLCHK(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void *) 0));
-    GLCHK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void *) offsetof(Vertex, u)));
-    GLCHK(glEnableVertexAttribArray(0));
-    GLCHK(glEnableVertexAttribArray(1));
-    GLCHK(glBindVertexArray(0)); // unbind
+    LGI_CHK(vb.bind());
+    LGI_CHK(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void *) 0));
+    LGI_CHK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void *) offsetof(Vertex, u)));
+    LGI_CHK(glEnableVertexAttribArray(0));
+    LGI_CHK(glEnableVertexAttribArray(1));
+    LGI_CHK(glBindVertexArray(0)); // unbind
 
     // update the buffer with default value.
     update();
@@ -802,7 +828,7 @@ ScreenQuad & ScreenQuad::cleanup() {
         // Reset this to mark it as cleaned up.
         va = 0;
     }
-    GLCHK(;);
+    LGI_CHK(;);
     return *this;
 }
 
@@ -839,7 +865,7 @@ static std::string addLineCount(const std::string & in) {
     int line = 1;
     for (auto ch : in) {
         if ('\n' == ch)
-            ss << formatString("\n(%3d) : ", ++line);
+            ss << lgl_details::format("\n(%3d) : ", ++line);
         else
             ss << ch;
     }
@@ -869,7 +895,8 @@ GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderTyp
                  "\n============================= GLSL shader source ===============================\n"
                  "%s\n"
                  "\n================================================================================\n",
-                 shaderType2String(shaderType), optionalFilename ? optionalFilename : "<no-name>", infoLog, addLineCount(source).c_str());
+                 shaderType2String(shaderType), optionalFilename ? optionalFilename : "<no-name>", infoLog,
+                 addLineCount(source).c_str());
         return 0;
     }
 
@@ -907,7 +934,7 @@ GLuint linkProgram(const std::vector<GLuint> & shaders, const char * optionalPro
             std::vector<uint8_t> buffer(1024 * 1024 * 1024); // allocate 1MB buffer.
             GLsizei len;
             GLenum dummyFormat;
-            GLCHK(glGetProgramBinary(program, (GLsizei)buffer.size(), &len, &dummyFormat, buffer.data()));
+            LGI_CHK(glGetProgramBinary(program, (GLsizei)buffer.size(), &len, &dummyFormat, buffer.data()));
             fs.write((const char*)buffer.data(), len);
         }
     }
@@ -1008,7 +1035,7 @@ bool SimpleTextureCopy::init() {
     // tex2d program
     {
         auto & prog2d = _programs[GL_TEXTURE_2D];
-        auto   ps2d   = formatString(pscode, "sampler2D", "u_uv");
+        auto   ps2d   = lgl_details::format(pscode, "sampler2D", "u_uv");
         if (!prog2d.program.loadVsPs(vscode, pscode)) return false;
         prog2d.tex0Binding = prog2d.program.getUniformBinding("u_tex0");
     }
@@ -1016,7 +1043,7 @@ bool SimpleTextureCopy::init() {
     // tex2d array program
     {
         auto & prog2darray = _programs[GL_TEXTURE_2D_ARRAY];
-        auto   ps2darray   = formatString(pscode, "sampler2DArray", "vec3(u_uv, 0.)");
+        auto   ps2darray   = lgl_details::format(pscode, "sampler2DArray", "vec3(u_uv, 0.)");
         if (!prog2darray.program.loadVsPs(vscode, pscode)) return false;
         prog2darray.tex0Binding = prog2darray.program.getUniformBinding("u_tex0");
     }
@@ -1032,7 +1059,7 @@ bool SimpleTextureCopy::init() {
     _quad.allocate();
     glGenFramebuffers(1, &_fbo);
 
-    GLCHK(;); // make sure we have no errors.
+    LGI_CHK(;); // make sure we have no errors.
     return true;
 }
 
@@ -1094,7 +1121,7 @@ void SimpleTextureCopy::copy(const TextureSubResource & src, const TextureSubRes
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
     // done. make sure we are error clean.
-    GLCHKDBG(;);
+    LGI_DCHK(;);
 }
 
 // -----------------------------------------------------------------------------
@@ -1109,7 +1136,9 @@ void GpuTimeElapsedQuery::stop() {
 
 // -----------------------------------------------------------------------------
 //
-std::string GpuTimeElapsedQuery::print() const { return formatString("%s : %s"), name.c_str(), jedi::ns2str(duration()).c_str(); }
+std::string GpuTimeElapsedQuery::print() const {
+    return lgl_details::format("%s : %s"), name.c_str(), jedi::ns2str(duration()).c_str();
+}
 
 // -----------------------------------------------------------------------------
 //
@@ -1135,7 +1164,8 @@ std::string GpuTimestamps::print(const char * ident) const {
             }
             // auto fromStart = current > startTime ? (current - startTime) : 0;
             auto delta = getDuration(prevTime, current);
-            ss << ident << std::setw(maxlen) << std::left << _marks[i].name << std::setw(0) << " : " << delta << std::endl;
+            ss << ident << std::setw(maxlen) << std::left << _marks[i].name << std::setw(0) << " : " << delta
+               << std::endl;
             prevTime = current;
         }
         ss << ident << "total = " << getDuration(_marks.front().result, _marks.back().result) << std::endl;
@@ -1267,13 +1297,13 @@ const char * eglError2String(EGLint err) {
         return "unknown error";
     }
 }
-#define EGLCHK_R(x, returnValueWhenFailed)                          \
+#define ELGI_CHK_R(x, returnValueWhenFailed)                          \
     if (!(x)) {                                                     \
         LGI_LOGE(#x " failed: %s", eglError2String(eglGetError())); \
         return (returnValueWhenFailed);                             \
     } else                                                          \
         void(0)
-#define EGLCHK(x)                                                  \
+#define ELGI_CHK(x)                                                  \
     if (!(x)) {                                                    \
         LGI_RIP(#x " failed: %s", eglError2String(eglGetError())); \
     } else                                                         \
@@ -1343,22 +1373,24 @@ private:
     void initStandaloneContext() {
         _new_disp = true;
         _disp = findBestHardwareDisplay();
-        if (0 == _disp) { EGLCHK(_disp = eglGetDisplay(EGL_DEFAULT_DISPLAY)); }
-        EGLCHK(eglInitialize(_disp, nullptr, nullptr));
-        const EGLint configAttribs[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 8, EGL_NONE};
+        if (0 == _disp) { ELGI_CHK(_disp = eglGetDisplay(EGL_DEFAULT_DISPLAY)); }
+        ELGI_CHK(eglInitialize(_disp, nullptr, nullptr));
+        const EGLint configAttribs[] = {
+            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 8,
+            EGL_NONE};
         EGLint numConfigs;
         EGLConfig config;
-        EGLCHK(eglChooseConfig(_disp, configAttribs, &config, 1, &numConfigs));
+        ELGI_CHK(eglChooseConfig(_disp, configAttribs, &config, 1, &numConfigs));
         LGI_CHK(numConfigs > 0);
         EGLint pbufferAttribs[] = {
             EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE,
         };
-        EGLCHK(_surf = eglCreatePbufferSurface(_disp, config, pbufferAttribs));
+        ELGI_CHK(_surf = eglCreatePbufferSurface(_disp, config, pbufferAttribs));
         LGI_CHK(_surf);
 #ifdef __ANDROID__
-        EGLCHK(eglBindAPI(EGL_OPENGL_ES_API));
+        ELGI_CHK(eglBindAPI(EGL_OPENGL_ES_API));
 #else
-        EGLCHK(eglBindAPI(EGL_OPENGL_API));
+        ELGI_CHK(eglBindAPI(EGL_OPENGL_API));
 #endif
         EGLint contextAttribs[] = {
             EGL_CONTEXT_CLIENT_VERSION,
@@ -1381,11 +1413,11 @@ private:
 
     static EGLConfig getCurrentConfig(EGLDisplay d, EGLContext c) {
         EGLint currentConfigID = 0;
-        EGLCHK_R(eglQueryContext(d, c, EGL_CONFIG_ID, &currentConfigID), 0);
+        ELGI_CHK_R(eglQueryContext(d, c, EGL_CONFIG_ID, &currentConfigID), 0);
         EGLint numConfigs;
-        EGLCHK_R(eglGetConfigs(d, nullptr, 0, &numConfigs), 0);
+        ELGI_CHK_R(eglGetConfigs(d, nullptr, 0, &numConfigs), 0);
         std::vector<EGLConfig> configs(numConfigs);
-        EGLCHK_R(eglGetConfigs(d, configs.data(), numConfigs, &numConfigs), 0);
+        ELGI_CHK_R(eglGetConfigs(d, configs.data(), numConfigs, &numConfigs), 0);
         for (auto config : configs) {
             EGLint id;
             eglGetConfigAttrib(d, config, EGL_CONFIG_ID, &id);
@@ -1400,15 +1432,17 @@ private:
 
         // query required extension
         auto eglQueryDevicesEXT = reinterpret_cast<PFNEGLQUERYDEVICESEXTPROC>(eglGetProcAddress("eglQueryDevicesEXT"));
-        auto eglGetPlatformDisplayExt = reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(eglGetProcAddress("eglGetPlatformDisplayEXT"));
+        auto eglGetPlatformDisplayExt =
+            reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(eglGetProcAddress("eglGetPlatformDisplayEXT"));
         if (!eglQueryDevicesEXT || !eglGetPlatformDisplayExt) {
-            LGI_LOGW("Can't query GPU devices, since required EGL extension(s) are missing. Fallback to default display.");
+            LGI_LOGW(
+                "Can't query GPU devices, since required EGL extension(s) are missing. Fallback to default display.");
             return 0;
         }
 
         EGLDeviceEXT devices[32];
         EGLint num_devices;
-        EGLCHK_R(eglQueryDevicesEXT(32, devices, &num_devices), 0);
+        ELGI_CHK_R(eglQueryDevicesEXT(32, devices, &num_devices), 0);
         if (num_devices == 0) {
             LGI_LOGE("No EGL devices found.");
             return 0;

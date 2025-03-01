@@ -19,7 +19,7 @@
 #define LITESPD_GL_ENABLE_GLAD 1
 #define LITESPD_GL_ENABLE_GLFW3 1
 #define LITESPD_GL_ENABLE_GLM 1
-#define LITESPD_GL_BACKTRACE backtrace()
+#define LITESPD_GL_BACKTRACE(...) backtrace()
 #include <litespd-gl/litespd-gl.h>
 
 std::string backtrace();

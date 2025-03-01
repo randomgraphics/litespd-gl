@@ -73,7 +73,7 @@ SOFTWARE.
 /// to help quickly identify the source of the error. The default implementation
 /// does nothing but return empty string.
 #ifndef LITESPD_GL_BACKTRACE
-#define LITESPD_GL_BACKTRACE()                                                 \
+#define LITESPD_GL_BACKTRACE(...)                                              \
     std::string("You have to define LITESPD_GL_BACKTRACE to retrieve current " \
                 "call stack.")
 #endif
@@ -172,8 +172,8 @@ SOFTWARE.
 
 #define LGI_NO_COPY_NO_MOVE(T) LGI_NO_COPY(T) LGI_NO_MOVE(T)
 
-#define LGI_DEFAULT_MOVE(T) \
-    T(T &&) = default;      \
+#define LGI_DEFAULT_MOVE(T)        \
+    T(T &&)             = default; \
     T & operator=(T &&) = default;
 
 #define LGI_STR(x) LGI_STR_HELPER(x)
@@ -190,21 +190,22 @@ SOFTWARE.
 #define LGI_LOGD(...) void(0)
 #endif
 
-#define LGI_THROW(...)                                                                                     \
-    do {                                                                                                   \
-        std::stringstream errorStream_;                                                                    \
-        errorStream_ << __FILE__ << "(" << __LINE__ << "): " << LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
-        auto errorString_ = errorStream_.str();                                                            \
-        LGI_LOGE("%s", errorString_.data());                                                               \
-        LITESPD_GL_THROW(errorString_);                                                                    \
+#define LGI_THROW(...)                                                                   \
+    do {                                                                                 \
+        std::stringstream errorStream_;                                                  \
+        errorStream_ << __FILE__ << "(" << __LINE__                                      \
+                     << "): " << LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
+        auto errorString_ = errorStream_.str();                                          \
+        LGI_LOGE("%s", errorString_.data());                                             \
+        LITESPD_GL_THROW(errorString_);                                                  \
     } while (false)
 
-#define LGI_REQUIRE(condition, ...)                                                    \
-    do {                                                                               \
-        if (!(condition)) {                                                            \
-            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__);           \
-            LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str()); \
-        }                                                                              \
+#define LGI_REQUIRE(condition, ...)                                                       \
+    do {                                                                                  \
+        if (!(condition)) {                                                               \
+            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
+            LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str());    \
+        }                                                                                 \
     } while (false)
 
 // Check OpenGL error. This check is enabled in both debug and release build.
@@ -212,7 +213,7 @@ SOFTWARE.
     if (true) {                                                                                   \
         func;                                                                                     \
         if (glGetError == NULL) {                                                                 \
-            LGI_LOGE("gl not initialized properly...");                                          \
+            LGI_LOGE("gl not initialized properly...");                                           \
         } else {                                                                                  \
             GLenum err = glGetError();                                                            \
             if (GL_NO_ERROR != err) { LGI_LOGE("function %s failed. (error=0x%x)", #func, err); } \
@@ -262,9 +263,9 @@ namespace LITESPD_GL_NAMESPACE {
 #endif
 
 namespace lgl_details {
-    /// @brief Format string using printf style format.
-    std::string format(const char * fmt, ...);
-    inline std::string format() { return {}; }
+/// @brief Format string using printf style format.
+std::string        format(const char * fmt, ...);
+inline std::string format() { return {}; }
 } // namespace lgl_details
 
 #if LITESPD_GL_ENABLE_GLAD
@@ -274,7 +275,8 @@ void initGlad(bool printGLInfo = false);
 
 // The 'optionalFilename' parameter is optional and is only used when printing
 // shader compilation error.
-GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderType, const char * optionalFilename = nullptr);
+GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderType,
+                            const char * optionalFilename = nullptr);
 
 // the program name parameter is optional and is only used to print link error.
 GLuint linkProgram(const std::vector<GLuint> & shaders, const char * optionalProgramName = nullptr);
@@ -766,7 +768,8 @@ public:
                    const void * pixels) const;
 
     // Set to rowPitchInBytes 0, if pixels are tightly packed.
-    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes, const void * pixels) const;
+    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes,
+                   const void * pixels) const;
 
     // jedi::ManagedRawImage getBaseLevelPixels() const;
 
@@ -806,7 +809,7 @@ class SimpleFBO {
 
     struct RenderTarget {
         GLint  internalFormat = 0;
-        GLuint texture = 0;
+        GLuint texture        = 0;
     };
 
     GLenum                _colorTextureTarget = GL_TEXTURE_2D;
@@ -1131,8 +1134,9 @@ public:
 
 class SimpleUniform {
 public:
-    using Value = std::variant<int, unsigned int, float, glm::vec2, glm::vec3, glm::vec4, glm::ivec2, glm::ivec3, glm::ivec4, glm::uvec2, glm::uvec3,
-                               glm::uvec4, glm::mat3x3, glm::mat4x4, std::vector<float>>;
+    using Value =
+        std::variant<int, unsigned int, float, glm::vec2, glm::vec3, glm::vec4, glm::ivec2, glm::ivec3, glm::ivec4,
+                     glm::uvec2, glm::uvec3, glm::uvec4, glm::mat3x3, glm::mat4x4, std::vector<float>>;
 
     Value value;
 
@@ -1208,7 +1212,8 @@ public:
     ~SimpleSprite() { cleanup(); }
     bool init();
     void cleanup();
-    void draw(GLuint texture, const glm::vec4 & pos = ScreenQuad::fullScreen(), const glm::vec4 & uv = ScreenQuad::fullTexture());
+    void draw(GLuint texture, const glm::vec4 & pos = ScreenQuad::fullScreen(),
+              const glm::vec4 & uv = ScreenQuad::fullTexture());
 };
 
 class SimpleTextureCopy {
@@ -1236,7 +1241,8 @@ public:
                     // TODO: uint32_t x, y, w, h;
     };
     void copy(const TextureSubResource & src, const TextureSubResource & dst);
-    void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel, uint32_t dstZ) {
+    void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel,
+              uint32_t dstZ) {
         auto & s = src.getDesc();
         auto & d = dst.getDesc();
         copy({s.target, s.id, srcLevel, srcZ}, {d.target, d.id, dstLevel, dstZ});
