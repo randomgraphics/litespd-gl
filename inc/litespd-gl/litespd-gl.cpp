@@ -45,12 +45,10 @@ SOFTWARE.
 extern "C" __declspec(dllimport) void __stdcall DebugBreak();
 #endif
 
-// #include <stb_image.h>
-// #include <stb_image_write.h>
-// #include <fstream>
 #include <atomic>
-// #include <stack>
+#include <stack>
 #include <algorithm>
+#include <iomanip>
 #include <stdarg.h>
 
 namespace LITESPD_GL_NAMESPACE {
@@ -64,6 +62,25 @@ std::string format(const char * fmt, ...) {
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     return buffer;
+}
+
+// convert nanoseconds (10^-9) to string
+std::string ns2str(uint64_t ns) {
+    auto              us  = ns / 1000ul;
+    auto              ms  = us / 1000ul;
+    auto              sec = ms / 1000ul;
+    std::stringstream s;
+    s << std::fixed << std::setw(5) << std::setprecision(1);
+    if (sec > 0) {
+        s << (float) (ms) / 1000.0f << "s ";
+    } else if (ms > 0) {
+        s << (float) (us) / 1000.0f << "ms";
+    } else if (us > 0) {
+        s << (float) (ns) / 1000.0f << "us";
+    } else {
+        s << ns << "ns";
+    }
+    return s.str();
 }
 
 } // namespace lgl_details
@@ -209,11 +226,11 @@ static void initializeOpenGLDebugRuntime() {
         LGI_CHK(glDebugMessageCallbackARB(&OGLDebugOutput::messageCallback, nullptr));
         // enable all messages
         LGI_CHK(glDebugMessageControlARB(GL_DONT_CARE, // source
-                                       GL_DONT_CARE, // type
-                                       GL_DONT_CARE, // severity
-                                       0,            // count
-                                       nullptr,      // ids
-                                       GL_TRUE));
+                                         GL_DONT_CARE, // type
+                                         GL_DONT_CARE, // severity
+                                         0,            // count
+                                         nullptr,      // ids
+                                         GL_TRUE));
     }
 }
 
@@ -319,7 +336,7 @@ void initGlad(bool printExtensionList) {
     LGI_CHK(gladLoadGL());
 #endif
 
-#if _DEBUG
+#if LITESPD_GL_ENABLE_DEBUG_BUILD
     initializeOpenGLDebugRuntime();
 #endif
 
@@ -371,18 +388,18 @@ void TextureObject::attach(GLenum target, GLuint id) {
 //
 void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t m) {
     cleanup();
-    _desc.target = GL_TEXTURE_2D;
+    _desc.target         = GL_TEXTURE_2D;
     _desc.internalFormat = internalFormat;
-    _desc.width  = (uint32_t) w;
-    _desc.height = (uint32_t) h;
-    _desc.depth  = (uint32_t) 1;
-    _desc.mips   = (uint32_t) m;
-    _owned       = true;
+    _desc.width          = (uint32_t) w;
+    _desc.height         = (uint32_t) h;
+    _desc.depth          = (uint32_t) 1;
+    _desc.mips           = (uint32_t) m;
+    _owned               = true;
     LGI_CHK(glGenTextures(1, &_desc.id));
     LGI_CHK(glBindTexture(_desc.target, _desc.id));
     applyDefaultParameters();
     LGI_CHK(glTexStorage2D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
-                         (GLsizei) _desc.height));
+                           (GLsizei) _desc.height));
     LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
@@ -390,18 +407,18 @@ void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t 
 //
 void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, size_t l, size_t m) {
     cleanup();
-    _desc.target = GL_TEXTURE_2D_ARRAY;
+    _desc.target         = GL_TEXTURE_2D_ARRAY;
     _desc.internalFormat = internalFormat;
-    _desc.width  = (uint32_t) w;
-    _desc.height = (uint32_t) h;
-    _desc.depth  = (uint32_t) l;
-    _desc.mips   = (uint32_t) m;
-    _owned       = true;
+    _desc.width          = (uint32_t) w;
+    _desc.height         = (uint32_t) h;
+    _desc.depth          = (uint32_t) l;
+    _desc.mips           = (uint32_t) m;
+    _owned               = true;
     LGI_CHK(glGenTextures(1, &_desc.id));
     LGI_CHK(glBindTexture(_desc.target, _desc.id));
     applyDefaultParameters();
     LGI_CHK(glTexStorage3D(_desc.target, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
-                         (GLsizei) _desc.height, (GLsizei) _desc.depth));
+                           (GLsizei) _desc.height, (GLsizei) _desc.depth));
     LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
@@ -409,18 +426,18 @@ void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, si
 //
 void TextureObject::allocateCube(GLint internalFormat, size_t w, size_t m) {
     cleanup();
-    _desc.target = GL_TEXTURE_CUBE_MAP;
+    _desc.target         = GL_TEXTURE_CUBE_MAP;
     _desc.internalFormat = internalFormat;
-    _desc.width  = (uint32_t) w;
-    _desc.height = (uint32_t) w;
-    _desc.depth  = 6;
-    _desc.mips   = (uint32_t) m;
-    _owned       = true;
+    _desc.width          = (uint32_t) w;
+    _desc.height         = (uint32_t) w;
+    _desc.depth          = 6;
+    _desc.mips           = (uint32_t) m;
+    _owned               = true;
     LGI_CHK(glGenTextures(1, &_desc.id));
     LGI_CHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _desc.id));
     applyDefaultParameters();
     LGI_CHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _desc.mips, internalFormat, (GLsizei) _desc.width,
-                         (GLsizei) _desc.width));
+                           (GLsizei) _desc.width));
     LGI_CHK(glBindTexture(_desc.target, 0));
 }
 
@@ -444,12 +461,12 @@ void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t
                               const void * pixels) const {
     if (empty()) return;
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
-    auto & cf = getColorFormatDesc(_desc.format);
+    auto & cf = InternalFormatDesc::describe(_desc.internalFormat);
     LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
-    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, cf.glFormat,
-                             cf.glType, pixels));
+    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, cf.format,
+                             cf.type, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     LGI_CHK(;);
 }
@@ -459,46 +476,44 @@ void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, si
     if (empty()) return;
 
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
-    auto & cf = getColorFormatDesc(_desc.format);
+    auto & cf = InternalFormatDesc::describe(_desc.internalFormat);
     LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
-
     LGI_DCHK(glTexSubImage3D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLint) layer, (GLsizei) w, (GLsizei) h,
-                             1, cf.glFormat, cf.glType, pixels));
-
+                             1, cf.format, cf.type, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     LGI_CHK(;);
 }
 
 // -----------------------------------------------------------------------------
 //
-jedi::ManagedRawImage TextureObject::getBaseLevelPixels() const {
-    if (empty()) return {};
-    jedi::ManagedRawImage image(ImageDesc(_desc.format, _desc.width, _desc.height, _desc.depth));
-#ifdef __ANDROID__
-    if (_desc.target == GL_TEXTURE_2D) {
-        GLuint _frameBuffer = 0;
-        glGenFramebuffers(1, &_frameBuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, _frameBuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _desc.target, _desc.id, 0);
-        glReadBuffer(GL_COLOR_ATTACHMENT0);
-        glReadPixels(0, 0, _desc.width, _desc.height, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
-        LGI_CHK(;);
-    } else {
-        LGI_LOGE("read texture 2D array pixels is not implemented on android yet.");
-    }
-#else
-    auto & cf = getColorFormatDesc(_desc.format);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, image.alignment());
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) image.pitch() * 8 / (int) cf.bits);
-    glBindTexture(_desc.target, _desc.id);
-    glGetTexImage(_desc.target, 0, cf.glFormat, cf.glType, image.data());
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    LGI_CHK(;);
-#endif
-    return image;
-}
+// jedi::ManagedRawImage TextureObject::getBaseLevelPixels() const {
+//     if (empty()) return {};
+//     jedi::ManagedRawImage image(ImageDesc(_desc.format, _desc.width, _desc.height, _desc.depth));
+// #ifdef __ANDROID__
+//     if (_desc.target == GL_TEXTURE_2D) {
+//         GLuint _frameBuffer = 0;
+//         glGenFramebuffers(1, &_frameBuffer);
+//         glBindFramebuffer(GL_FRAMEBUFFER, _frameBuffer);
+//         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _desc.target, _desc.id, 0);
+//         glReadBuffer(GL_COLOR_ATTACHMENT0);
+//         glReadPixels(0, 0, _desc.width, _desc.height, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+//         LGI_CHK(;);
+//     } else {
+//         LGI_LOGE("read texture 2D array pixels is not implemented on android yet.");
+//     }
+// #else
+//     auto & cf = getColorFormatDesc(_desc.format);
+//     glPixelStorei(GL_UNPACK_ALIGNMENT, image.alignment());
+//     glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) image.pitch() * 8 / (int) cf.bits);
+//     glBindTexture(_desc.target, _desc.id);
+//     glGetTexImage(_desc.target, 0, cf.glFormat, cf.glType, image.data());
+//     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+//     LGI_CHK(;);
+// #endif
+//     return image;
+// }
 
 // -----------------------------------------------------------------------------
 //
@@ -518,7 +533,7 @@ void SimpleFBO::cleanup() {
 
 // -----------------------------------------------------------------------------
 //
-void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFormat * colorFormats) {
+void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * colorFormats) {
     LGI_CHK(;); // make sure there's no preexisting conditions.
 
     cleanup(); // release existing buffers.
@@ -541,9 +556,8 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
         GLenum drawBuffers[8] = {};
         for (int i = 0; i < COLOR_BUFFER_COUNT; ++i) {
             LGI_CHK(glGenTextures(1, &_colors[i].texture));
-            auto cf                     = colorFormats[i];
-            _colors[i].format           = cf;
-            const GLenum internalFormat = getColorFormatDesc(cf).glInternalFormat;
+            auto cf                   = colorFormats[i];
+            _colors[i].internalFormat = cf;
             LGI_CHK(glBindTexture(GL_TEXTURE_2D, _colors[i].texture));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint) (levels - 1)));
@@ -551,12 +565,12 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, _mips[0].width, _mips[0].height));
+            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, levels, cf, _mips[0].width, _mips[0].height));
             for (int l = 0; l < (int) _mips.size(); ++l) {
                 auto & m = _mips[l];
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
                 LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, (GLenum) (GL_COLOR_ATTACHMENT0 + i), GL_TEXTURE_2D,
-                                             _colors[i].texture, l));
+                                               _colors[i].texture, l));
             }
             drawBuffers[i] = (GLenum) (GL_COLOR_ATTACHMENT0 + i);
         }
@@ -593,7 +607,7 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
             // Note: switching to 16-bit (GL_UNSIGNED_SHORT) depth buffer gives about 3ms performance boost.
             LGI_CHK(glTexImage2D(GL_TEXTURE_2D, l, GL_DEPTH_COMPONENT, m.width, m.height, 0, GL_DEPTH_COMPONENT,
-                               GL_UNSIGNED_INT, nullptr));
+                                 GL_UNSIGNED_INT, nullptr));
             LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, l));
         }
     }
@@ -602,36 +616,8 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const ColorFor
 
     // make sure the FBO is ready to use.
     auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    LGI_CHK(GL_FRAMEBUFFER_COMPLETE == status);
+    LGI_REQUIRE(GL_FRAMEBUFFER_COMPLETE == status);
     LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-}
-
-// -----------------------------------------------------------------------------
-//
-static void SaveImageToPNG(const float * pixels, uint32_t w, uint32_t h, uint32_t channels,
-                           const std::string & filepath) {
-    // convert data to RGB8
-    size_t               numPixels = w * h;
-    std::vector<uint8_t> rgb8(numPixels * 3);
-    for (size_t i = 0; i < numPixels; ++i) {
-        uint8_t *     d = &rgb8[i * 3];
-        const float * s = &pixels[i * channels];
-        for (size_t c = 0; c < 3; ++c) {
-            if (c < channels) {
-                auto f = s[c] * 255.0f;
-                if (f < 0.f)
-                    d[c] = 0;
-                else if (f > 255.f)
-                    d[c] = 255;
-                else
-                    d[c] = (uint8_t) f;
-            } else {
-                d[c] = 0;
-            }
-        }
-    }
-    LGI_LOGI("Save texture content to %s", filepath.c_str());
-    stbi_write_png(filepath.c_str(), (int) w, (int) h, 3, rgb8.data(), 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -647,25 +633,10 @@ static void saveTextureToFile(uint32_t w, uint32_t h, uint32_t channels, GLenum 
     for (size_t i = 0; i < h; ++i) {
         const float * s = &pixels[w * channels * (h - i - 1)];
         float *       d = &flipped[w * channels * i];
-        memcpy(d, s, w * channels * sizeof(float));
+        std::memcpy(d, s, w * channels * sizeof(float));
     }
 
-    std::ofstream file(filepath, std::ofstream::binary);
-    if (!file.good()) {
-        LGI_LOGE("Failed to open file %s for writing", filepath.c_str());
-        return;
-    }
-    struct FileHeader {
-        char     FILE_TAG[8];
-        uint32_t w, h, channels;
-        GLenum   type;
-    } header = {{'F', 'T', 'L', 'I', 'M', 'A', 'G', 'E'}, w, h, channels, type};
-    file.write((const char *) &header, sizeof(header));
-    file.write((const char *) flipped.data(), flipped.size() * sizeof(float));
-    file.close();
-
-    // Also save to png file just for easy previewing.
-    SaveImageToPNG(flipped.data(), w, h, channels, filepath + ".png");
+    // todo: save to file
 }
 
 // -----------------------------------------------------------------------------
@@ -684,7 +655,7 @@ void SimpleFBO::saveDepthToFile(const std::string & filepath) const {
 
 // -----------------------------------------------------------------------------
 //
-void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
+void CubeFBO::allocate(uint32_t w, uint32_t levels, GLint internalFormat) {
     cleanup(); // release existing buffers.
 
     LGI_ASSERT(w > 0);
@@ -698,8 +669,7 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
 
     const auto minfilter = _mips.size() > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
 
-    const GLenum internalFormat = getColorFormatDesc(cf).glInternalFormat;
-    if (ColorFormat::NONE != cf) {
+    if (GL_NONE != internalFormat) {
         LGI_CHK(glGenTextures(1, &_color));
         LGI_CHK(glBindTexture(GL_TEXTURE_CUBE_MAP, _color));
         LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0));
@@ -709,13 +679,13 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
         LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
         LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
         LGI_CHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _mips.size(), internalFormat, (GLsizei) _mips[0].width,
-                             (GLsizei) _mips[0].width));
+                               (GLsizei) _mips[0].width));
         for (int l = 0; l < (int) _mips.size(); ++l) {
             const auto & m = _mips[l];
             for (int i = 0; i < 6; ++i) {
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
                 LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                             _color, l));
+                                               _color, l));
             }
         }
     } else {
@@ -748,9 +718,9 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
         for (int i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
             LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, l, GL_DEPTH_COMPONENT, m.width, m.width, 0,
-                               GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
+                                 GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
             LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                         _depth, l));
+                                           _depth, l));
         }
     }
 
@@ -762,7 +732,7 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, ColorFormat cf) {
         for (int i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
             auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-            LGI_CHK(GL_FRAMEBUFFER_COMPLETE == status);
+            LGI_REQUIRE(GL_FRAMEBUFFER_COMPLETE == status);
         }
     }
 
@@ -1137,7 +1107,7 @@ void GpuTimeElapsedQuery::stop() {
 // -----------------------------------------------------------------------------
 //
 std::string GpuTimeElapsedQuery::print() const {
-    return lgl_details::format("%s : %s"), name.c_str(), jedi::ns2str(duration()).c_str();
+    return lgl_details::format("%s : %s"), name.c_str(), lgl_details::ns2str(duration()).c_str();
 }
 
 // -----------------------------------------------------------------------------
@@ -1152,7 +1122,7 @@ std::string GpuTimestamps::print(const char * ident) const {
         ss << ident << "all timestamp queries are pending...\n";
     } else {
 
-        auto getDuration = [](uint64_t a, uint64_t b) { return b >= a ? jedi::ns2str(b - a) : "  <n/a>"; };
+        auto getDuration = [](uint64_t a, uint64_t b) { return b >= a ? lgl_details::ns2str(b - a) : "  <n/a>"; };
 
         size_t maxlen = 0;
         for (size_t i = 1; i < _marks.size(); ++i) { maxlen = std::max(_marks[i].name.size(), maxlen); }
@@ -1164,7 +1134,7 @@ std::string GpuTimestamps::print(const char * ident) const {
             }
             // auto fromStart = current > startTime ? (current - startTime) : 0;
             auto delta = getDuration(prevTime, current);
-            ss << ident << std::setw(maxlen) << std::left << _marks[i].name << std::setw(0) << " : " << delta
+            ss << ident << std::setw((int) maxlen) << std::left << _marks[i].name << std::setw(0) << " : " << delta
                << std::endl;
             prevTime = current;
         }
@@ -1175,30 +1145,63 @@ std::string GpuTimestamps::print(const char * ident) const {
 
 // -----------------------------------------------------------------------------
 //
-#if 0
+#if LITESPD_GL_ENABLE_GLFW3
+#include <GLFW/glfw3.h>
+class RenderContext::Impl {
+public:
+    Impl(RenderContext::WindowHandle, bool shared) {
+        GLFWwindow * current = nullptr;
+        if (shared) {
+            current = glfwGetCurrentContext();
+            if (!current) {
+                LGI_THROW("No current GLFW window found.");
+                return;
+            }
+        } else {
+            glfwInit();
+        }
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        _window = glfwCreateWindow(1, 1, "", nullptr, current);
+        if (!_window) LGI_THROW("Failed to create shared GLFW window.");
+    }
+
+    virtual ~Impl() {
+        if (_window) glfwDestroyWindow(_window), _window = nullptr;
+    }
+
+    void makeCurrent() {
+        if (_window) {
+            glfwMakeContextCurrent(_window);
+        } else {
+            LGI_LOGE("The RenderContext pointer was not properly initialized.");
+        }
+    }
+
+    static void clearCurrent() { glfwMakeContextCurrent(nullptr); }
+
+    void swapBuffers() { glfwSwapBuffers(_window); }
+
+private:
+    GLFWwindow * _window = nullptr;
+};
+#elif 0
 // This code path creates shared GL context using native Win32 API w/o using any 3rd party libraries.
 // It is not currenty being used, but kept as reference.
 #include <windows.h>
-class RenderContext::Impl
-{
-    HWND _window = 0;
-    HDC _dc = 0;
-    HGLRC _rc = 0;
+class RenderContext::Impl {
+    HWND  _window = 0;
+    HDC   _dc     = 0;
+    HGLRC _rc     = 0;
 
 public:
+    ~Impl() { destroy(); }
 
-    ~Impl()
-    {
-        destroy();
-    }
-
-    bool create(void *)
-    {
+    bool create(void *) {
         destroy();
 
-        auto currentRC = wglGetCurrentContext();
-        auto currentDC = wglGetCurrentDC();
-        auto currentPF = GetPixelFormat(currentDC);
+        auto                  currentRC = wglGetCurrentContext();
+        auto                  currentDC = wglGetCurrentDC();
+        auto                  currentPF = GetPixelFormat(currentDC);
         PIXELFORMATDESCRIPTOR currentPfd;
         currentPfd.nSize = sizeof(currentPfd);
         if (0 == DescribePixelFormat(currentDC, currentPF, sizeof(currentPfd), &currentPfd)) {
@@ -1209,20 +1212,21 @@ public:
         // get class name
         auto className = "shared context class";
 
-        WNDCLASSA wc = {};
-        wc.lpfnWndProc    = (WNDPROC)&DefWindowProc;
-        wc.cbClsExtra     = 0;
-        wc.cbWndExtra     = 0;
-        wc.hInstance      = (HINSTANCE)GetModuleHandleW(nullptr);
-        wc.hIcon          = LoadIcon (0, IDI_APPLICATION);
-        wc.hCursor        = LoadCursor (0,IDC_ARROW);
-        wc.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-        wc.lpszMenuName   = 0;
-        wc.lpszClassName  = className;
-        wc.hIcon          = LoadIcon(0, IDI_APPLICATION);
+        WNDCLASSA wc     = {};
+        wc.lpfnWndProc   = (WNDPROC) &DefWindowProc;
+        wc.cbClsExtra    = 0;
+        wc.cbWndExtra    = 0;
+        wc.hInstance     = (HINSTANCE) GetModuleHandleW(nullptr);
+        wc.hIcon         = LoadIcon(0, IDI_APPLICATION);
+        wc.hCursor       = LoadCursor(0, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
+        wc.lpszMenuName  = 0;
+        wc.lpszClassName = className;
+        wc.hIcon         = LoadIcon(0, IDI_APPLICATION);
         RegisterClassA(&wc);
-        _window = CreateWindowA(className, "shared context window", 0, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, nullptr, 0, wc.hInstance, 0);
-        _dc = GetDC(_window);
+        _window = CreateWindowA(className, "shared context window", 0, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, nullptr, 0,
+                                wc.hInstance, 0);
+        _dc     = GetDC(_window);
         if (!SetPixelFormat(_dc, currentPF, &currentPfd)) {
             LGI_LOGE("SetPixelFormat failed!");
             return false;
@@ -1239,28 +1243,25 @@ public:
         return true;
     }
 
-    void makeCurrent()
-    {
+    void makeCurrent() {
         if (!_rc) {
             LGI_LOGE("shared GL context is not properly initialized.");
             return;
         }
 
-        if (!wglMakeCurrent(_dc, _rc)) {
-            LGI_LOGE("wglMakeCurrent() failed.");
-        }
+        if (!wglMakeCurrent(_dc, _rc)) { LGI_LOGE("wglMakeCurrent() failed."); }
     }
 
 private:
-
-    void destroy()
-    {
+    void destroy() {
         if (_rc) wglDeleteContext(_rc), _rc = 0;
         if (_dc) ::ReleaseDC(_window, _dc), _dc = 0;
         if (_window) ::DestroyWindow(_window), _window = 0;
     }
 };
-#elif defined(__ANDROID__) || defined(__linux__)
+#elif 0 // defined(__ANDROID__) || defined(__linux__)
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 const char * eglError2String(EGLint err) {
     switch (err) {
     case EGL_SUCCESS:
@@ -1297,16 +1298,16 @@ const char * eglError2String(EGLint err) {
         return "unknown error";
     }
 }
-#define ELGI_CHK_R(x, returnValueWhenFailed)                          \
+#define EGL_CHK_R(x, returnValueWhenFailed)                         \
     if (!(x)) {                                                     \
         LGI_LOGE(#x " failed: %s", eglError2String(eglGetError())); \
         return (returnValueWhenFailed);                             \
     } else                                                          \
         void(0)
-#define ELGI_CHK(x)                                                  \
-    if (!(x)) {                                                    \
-        LGI_RIP(#x " failed: %s", eglError2String(eglGetError())); \
-    } else                                                         \
+#define EGL_CHK(x)                                                   \
+    if (!(x)) {                                                      \
+        LGI_THROW(#x " failed: %s", eglError2String(eglGetError())); \
+    } else                                                           \
         void(0)
 class RenderContext::Impl {
 public:
@@ -1334,19 +1335,19 @@ public:
 
 private:
     // The context represented by this object.
-    bool _new_disp = false;
-    EGLDisplay _disp = 0;
-    EGLContext _rc = 0;
-    EGLSurface _surf = 0;
-    NativeWindowType _window = (NativeWindowType) nullptr;
+    bool             _new_disp = false;
+    EGLDisplay       _disp     = 0;
+    EGLContext       _rc       = 0;
+    EGLSurface       _surf     = 0;
+    NativeWindowType _window   = (NativeWindowType) nullptr;
 
     void initSharedContext() {
-        _disp = eglGetCurrentDisplay();
+        _disp          = eglGetCurrentDisplay();
         auto currentRC = eglGetCurrentContext();
-        if (!_disp || !currentRC) LGI_RIP("no current display and/or EGL context found.");
+        if (!_disp || !currentRC) LGI_THROW("no current display and/or EGL context found.");
 
         auto currentConfig = getCurrentConfig(_disp, currentRC);
-        if (!currentConfig) LGI_RIP("failed to get EGL config.");
+        if (!currentConfig) LGI_THROW("failed to get EGL config.");
 
         if (_window) {
             LGI_CHK(_surf = eglCreateWindowSurface(_disp, getCurrentConfig(_disp, currentRC), _window, nullptr));
@@ -1372,25 +1373,25 @@ private:
 
     void initStandaloneContext() {
         _new_disp = true;
-        _disp = findBestHardwareDisplay();
-        if (0 == _disp) { ELGI_CHK(_disp = eglGetDisplay(EGL_DEFAULT_DISPLAY)); }
-        ELGI_CHK(eglInitialize(_disp, nullptr, nullptr));
+        _disp     = findBestHardwareDisplay();
+        if (0 == _disp) { EGL_CHK(_disp = eglGetDisplay(EGL_DEFAULT_DISPLAY)); }
+        EGL_CHK(eglInitialize(_disp, nullptr, nullptr));
         const EGLint configAttribs[] = {
             EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 8,
             EGL_NONE};
-        EGLint numConfigs;
+        EGLint    numConfigs;
         EGLConfig config;
-        ELGI_CHK(eglChooseConfig(_disp, configAttribs, &config, 1, &numConfigs));
-        LGI_CHK(numConfigs > 0);
+        EGL_CHK(eglChooseConfig(_disp, configAttribs, &config, 1, &numConfigs));
+        LGI_REQUIRE(numConfigs > 0);
         EGLint pbufferAttribs[] = {
             EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE,
         };
-        ELGI_CHK(_surf = eglCreatePbufferSurface(_disp, config, pbufferAttribs));
-        LGI_CHK(_surf);
+        EGL_CHK(_surf = eglCreatePbufferSurface(_disp, config, pbufferAttribs));
+        EGL_CHK(_surf);
 #ifdef __ANDROID__
-        ELGI_CHK(eglBindAPI(EGL_OPENGL_ES_API));
+        EGL_CHK(eglBindAPI(EGL_OPENGL_ES_API));
 #else
-        ELGI_CHK(eglBindAPI(EGL_OPENGL_API));
+        EGL_CHK(eglBindAPI(EGL_OPENGL_API));
 #endif
         EGLint contextAttribs[] = {
             EGL_CONTEXT_CLIENT_VERSION,
@@ -1401,7 +1402,7 @@ private:
 #endif
             EGL_NONE,
         };
-        LGI_CHK(_rc = eglCreateContext(_disp, config, 0, contextAttribs));
+        EGL_CHK(_rc = eglCreateContext(_disp, config, 0, contextAttribs));
     }
 
     void destroy() {
@@ -1413,11 +1414,11 @@ private:
 
     static EGLConfig getCurrentConfig(EGLDisplay d, EGLContext c) {
         EGLint currentConfigID = 0;
-        ELGI_CHK_R(eglQueryContext(d, c, EGL_CONFIG_ID, &currentConfigID), 0);
+        EGL_CHK_R(eglQueryContext(d, c, EGL_CONFIG_ID, &currentConfigID), 0);
         EGLint numConfigs;
-        ELGI_CHK_R(eglGetConfigs(d, nullptr, 0, &numConfigs), 0);
+        EGL_CHK_R(eglGetConfigs(d, nullptr, 0, &numConfigs), 0);
         std::vector<EGLConfig> configs(numConfigs);
-        ELGI_CHK_R(eglGetConfigs(d, configs.data(), numConfigs, &numConfigs), 0);
+        EGL_CHK_R(eglGetConfigs(d, configs.data(), numConfigs, &numConfigs), 0);
         for (auto config : configs) {
             EGLint id;
             eglGetConfigAttrib(d, config, EGL_CONFIG_ID, &id);
@@ -1441,8 +1442,8 @@ private:
         }
 
         EGLDeviceEXT devices[32];
-        EGLint num_devices;
-        ELGI_CHK_R(eglQueryDevicesEXT(32, devices, &num_devices), 0);
+        EGLint       num_devices;
+        EGL_CHK_R(eglQueryDevicesEXT(32, devices, &num_devices), 0);
         if (num_devices == 0) {
             LGI_LOGE("No EGL devices found.");
             return 0;
@@ -1452,7 +1453,7 @@ private:
         // try find the NVIDIA device
         EGLDisplay nvidia = 0;
         for (int i = 0; i < num_devices; ++i) {
-            auto display = eglGetPlatformDisplayExt(EGL_PLATFORM_DEVICE_EXT, devices[i], nullptr);
+            auto   display = eglGetPlatformDisplayExt(EGL_PLATFORM_DEVICE_EXT, devices[i], nullptr);
             EGLint major, minor;
             eglInitialize(display, &major, &minor);
             auto vendor = eglQueryString(display, EGL_VENDOR);
@@ -1464,44 +1465,8 @@ private:
     }
 };
 #else
-#include <GLFW/glfw3.h>
-class RenderContext::Impl {
-public:
-    Impl(RenderContext::WindowHandle, bool shared) {
-        GLFWwindow * current = nullptr;
-        if (shared) {
-            current = glfwGetCurrentContext();
-            if (!current) {
-                LGI_RIP("No current GLFW window found.");
-                return;
-            }
-        } else {
-            glfwInit();
-        }
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        _window = glfwCreateWindow(1, 1, "", nullptr, current);
-        if (!_window) LGI_RIP("Failed to create shared GLFW window.");
-    }
-
-    virtual ~Impl() {
-        if (_window) glfwDestroyWindow(_window), _window = nullptr;
-    }
-
-    static void makeCurrent(RenderContext * ptr) {
-        if (_window) {
-            glfwMakeContextCurrent(_window);
-        } else {
-            LGI_LOGE("GL context wasn't properly initialized.");
-        }
-    }
-
-    static void clearCurrent() { glfwMakeContextCurrent(nullptr); }
-
-    void swapBuffers() { glfwSwapBuffers(_window); }
-
-private:
-    GLFWwindow * _window = nullptr;
-};
+#error \
+    "RenderContext is not implemented for current platform. Enable GLFW3 feature of the litespd-gl library to fix this."
 #endif
 
 RenderContext::RenderContext(Type t, WindowHandle w) {
@@ -1511,7 +1476,9 @@ RenderContext::RenderContext(Type t, WindowHandle w) {
 
     _impl = new Impl(w, t == SHARED);
     makeCurrent();
-    initGLExtensions();
+#if LITESPD_GL_ENABLE_GLAD
+    initGlad();
+#endif
 
     // switch back to previous context
     rcs.pop();
@@ -1536,7 +1503,11 @@ void RenderContext::swapBuffers() {
 
 class RenderContextStack::Impl {
     struct OpenGLRC {
-#if defined(__ANDROID__) || defined(__linux__)
+#if LITESPD_GL_ENABLE_GLFW3
+        GLFWwindow * window;
+        void         store() { window = glfwGetCurrentContext(); }
+        void         restore() { glfwMakeContextCurrent(window); }
+#elif defined(__ANDROID__) || defined(__linux__)
         EGLDisplay display;
         EGLSurface drawSurface;
         EGLSurface readSurface;
@@ -1558,10 +1529,7 @@ class RenderContextStack::Impl {
             }
         }
 #else
-        GLFWwindow * window;
-
-        void store() { window = glfwGetCurrentContext(); }
-        void restore() { glfwMakeContextCurrent(window); }
+#error "RenderContextStack is not implemented for current platform."
 #endif
     };
 
@@ -1571,7 +1539,6 @@ public:
     ~Impl() {
         while (_stack.size() > 1) _stack.pop();
         if (1 == _stack.size()) pop();
-        LGI_ASSERT(_stack.empty());
     }
 
     void push() {

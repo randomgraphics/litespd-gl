@@ -1,3 +1,7 @@
+# Look for OpenGL
+find_package(OpenGL REQUIRED)
+link_libraries(OpenGL::GL)
+
 # setup list of system specific dependencies
 if (ANDROID)
     link_libraries(log)

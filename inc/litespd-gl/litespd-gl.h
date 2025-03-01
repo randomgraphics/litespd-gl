@@ -152,6 +152,7 @@ SOFTWARE.
 
 #include <cassert>
 #include <cstdio>
+#include <cstring> // memcpy
 #include <string>
 #include <sstream>
 #include <vector>
@@ -319,8 +320,6 @@ inline void clearScreen(const glm::vec4 & color = {0.f, 0.f, 0.f, 1.f}, float de
     LGI_DCHK(glClear(flags));
 }
 
-// -----------------------------------------------------------------------------
-//
 inline GLint getInt(GLenum name) {
     GLint value;
     glGetIntegerv(name, &value);
@@ -333,6 +332,19 @@ inline GLint getInt(GLenum name, GLint i) {
     return value;
 }
 
+// -----------------------------------------------------------------------------
+//
+struct InternalFormatDesc {
+    GLenum   internalFormat;
+    GLenum   format;
+    GLenum   type;
+    uint32_t bits;
+
+    static const InternalFormatDesc & describe(GLenum internalFormat);
+};
+
+// -----------------------------------------------------------------------------
+//
 template<GLenum TARGET>
 struct QueryObject {
     enum Status {
@@ -513,7 +525,7 @@ struct BufferObject {
         void * mapped = nullptr;
         LGI_DCHK(mapped = glMapBufferRange(T2, offset * sizeof(T), count * sizeof(T), GL_MAP_READ_BIT));
         if (mapped) {
-            memcpy(ptr, mapped, count * sizeof(T));
+            std::memcpy(ptr, mapped, count * sizeof(T));
             LGI_DCHK(glUnmapBuffer(T2));
         }
     }
