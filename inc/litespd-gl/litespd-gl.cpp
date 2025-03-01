@@ -49,10 +49,11 @@ namespace LITESPD_GL_NAMESPACE {
 
 namespace lgl_details {} // namespace lgl_details
 
-#include <stb_image.h>
-#include <stb_image_write.h>
+// #include <stb_image.h>
+// #include <stb_image_write.h>
 #include <sstream>
-#include <fstream>
+//#include <fstream>
+#undef pair
 #include <algorithm>
 #include <atomic>
 #include <stack>

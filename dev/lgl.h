@@ -16,15 +16,10 @@
     } while (false)
 #endif
 
-// Include GLAD header.
-#include <glad/glad.h>
-
-// Include GLFW3 header.
-#ifndef __ANDROID__
+#define LITESPD_GL_ENABLE_GLAD 1
 #define LITESPD_GL_ENABLE_GLFW3 1
-#include <GLFW/glfw3.h>
-#endif
-
+#define LITESPD_GL_ENABLE_GLM 1
+#define LITESPD_GL_BACKTRACE backtrace()
 #include <litespd-gl/litespd-gl.h>
 
 std::string backtrace();

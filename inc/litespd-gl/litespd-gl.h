@@ -53,6 +53,12 @@ SOFTWARE.
 #define LITESPD_GL_ENABLE_GLAD 0
 #endif
 
+/// \def LITESPD_GL_ENABLE_GLM
+/// Set to 1 to enable GLM interation helpers. Disabled by default.
+#ifndef LITESPD_GL_ENABLE_GLM
+#define LITESPD_GL_ENABLE_GLM 0
+#endif
+
 /// \def LITESPD_GL_THROW
 /// The macro to throw runtime exception.
 /// \param errorString The error string to throw. Can be std::string or const
@@ -125,6 +131,7 @@ SOFTWARE.
 // include headers
 
 #if LITESPD_GL_ENABLE_GLAD
+#include <KHR/khrplatform.h>
 #include <glad/glad.h>
 #else
 /// Make sure GL/gl.h is included before this header.
@@ -139,7 +146,17 @@ SOFTWARE.
 #endif
 #endif
 
+#if LITESPD_GL_ENABLE_GLM
+#include <glm/glm.hpp>
+#endif
+
 #include <cassert>
+#include <cstdio>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <variant>
+#include <unordered_map>
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Define LGI macros. LGI stands for Litespd-GL-Implementation. Macros started
@@ -155,14 +172,18 @@ SOFTWARE.
 
 #define LGI_NO_COPY_NO_MOVE(T) LGI_NO_COPY(T) LGI_NO_MOVE(T)
 
+#define LGI_DEFAULT_MOVE(T) \
+    T(T &&) = default;      \
+    T & operator=(T &&) = default;
+
 #define LGI_STR(x) LGI_STR_HELPER(x)
 
 #define LGI_STR_HELPER(x) #x
 
-#define LGI_LOGE(...) LITESPD_GL_LOG_ERROR(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
-#define LGI_LOGW(...) LITESPD_GL_LOG_WARNING(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
-#define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
-#define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
+#define LGI_LOGE(...) LITESPD_GL_LOG_ERROR(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
+#define LGI_LOGW(...) LITESPD_GL_LOG_WARNING(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
+#define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
+#define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
 #define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
 #else
@@ -172,7 +193,7 @@ SOFTWARE.
 #define LGI_THROW(...)                                                                                     \
     do {                                                                                                   \
         std::stringstream errorStream_;                                                                    \
-        errorStream_ << __FILE__ << "(" << __LINE__ << "): " << LITESPD_GL_NAMESPACE::format(__VA_ARGS__); \
+        errorStream_ << __FILE__ << "(" << __LINE__ << "): " << LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
         auto errorString_ = errorStream_.str();                                                            \
         LGI_LOGE("%s", errorString_.data());                                                               \
         LITESPD_GL_THROW(errorString_);                                                                    \
@@ -181,7 +202,7 @@ SOFTWARE.
 #define LGI_REQUIRE(condition, ...)                                                    \
     do {                                                                               \
         if (!(condition)) {                                                            \
-            auto errorMessage__ = LITESPD_GL_NAMESPACE::format(__VA_ARGS__);           \
+            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__);           \
             LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str()); \
         }                                                                              \
     } while (false)
@@ -209,7 +230,7 @@ SOFTWARE.
 
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
 // assert is enabled only in debug build
-#define LGI_ASSERT LITESPD_REQUIRE
+#define LGI_ASSERT LGI_REQUIRE
 #else
 #define LGI_ASSERT(...) ((void) 0)
 #endif
@@ -239,6 +260,12 @@ namespace LITESPD_GL_NAMESPACE {
 #pragma warning(push)
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
 #endif
+
+namespace lgl_details {
+    /// @brief Format string using printf style format.
+    std::string format(const char * fmt, ...);
+    inline std::string format() { return {}; }
+} // namespace lgl_details
 
 #if LITESPD_GL_ENABLE_GLAD
 /// @brief Load all GL extension functions using GLAD.
@@ -303,10 +330,6 @@ inline GLint getInt(GLenum name, GLint i) {
     glGetIntegeri_v(name, i, &value);
     return value;
 }
-
-#if defined(__ANDROID__) || defined(__linux__)
-const char * eglError2String(EGLint err);
-#endif
 
 template<GLenum TARGET>
 struct QueryObject {
@@ -732,11 +755,11 @@ public:
 
     void attach(const TextureObject & that) { attach(that._desc.target, that._desc.id); }
 
-    void allocate2D(jedi::ColorFormat f, size_t w, size_t h, size_t m = 1);
+    void allocate2D(GLint f, size_t w, size_t h, size_t m = 1);
 
-    void allocate2DArray(jedi::ColorFormat f, size_t w, size_t h, size_t l, size_t m = 1);
+    void allocate2DArray(GLint f, size_t w, size_t h, size_t l, size_t m = 1);
 
-    void allocateCube(jedi::ColorFormat f, size_t w, size_t m = 1);
+    void allocateCube(GLint f, size_t w, size_t m = 1);
 
     void setPixels(size_t level, size_t x, size_t y, size_t w, size_t h,
                    size_t       rowPitchInBytes, // set to 0, if pixels are tightly packed.
@@ -745,7 +768,7 @@ public:
     // Set to rowPitchInBytes 0, if pixels are tightly packed.
     void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes, const void * pixels) const;
 
-    jedi::ManagedRawImage getBaseLevelPixels() const;
+    // jedi::ManagedRawImage getBaseLevelPixels() const;
 
     void cleanup() {
         if (_owned && _desc.id) { LGI_CHK(glDeleteTextures(1, &_desc.id)); }
@@ -805,13 +828,13 @@ public:
     void allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * cf);
 
     void allocate(uint32_t w, uint32_t h, uint32_t levels, GLint cf) {
-        LGI_CHK(1 == COLOR_BUFFER_COUNT);
+        LGI_REQUIRE(1 == COLOR_BUFFER_COUNT);
         allocate(w, h, levels, &cf);
     }
 
     void allocate(uint32_t w, uint32_t h, uint32_t levels, GLint cf1, GLint cf2) {
-        LGI_CHK(2 == COLOR_BUFFER_COUNT);
-        jedi::ColorFormat formats[] = {cf1, cf2};
+        LGI_REQUIRE(2 == COLOR_BUFFER_COUNT);
+        GLint formats[] = {cf1, cf2};
         allocate(w, h, levels, formats);
     }
 
@@ -883,7 +906,7 @@ public:
         _mips.clear();
     }
 
-    void allocate(uint32_t w, uint32_t levels, jedi::ColorFormat cf);
+    void allocate(uint32_t w, uint32_t levels, GLint cf);
 
     uint32_t getLevels() const { return (uint32_t) _mips.size(); }
 
@@ -1156,10 +1179,10 @@ public:
                     glUniform3ui(_location, v.x, v.y, v.z);
                 else if constexpr (std::is_same_v<T, glm::uvec4>)
                     glUniform4ui(_location, v.x, v.y, v.z, v.w);
-                else if constexpr (std::is_same_v<T, glm::mat3x3>)
-                    glUniformMatrix3fv(_location, 1, false, glm::value_ptr(v));
-                else if constexpr (std::is_same_v<T, glm::mat4x4>)
-                    glUniformMatrix4fv(_location, 1, false, glm::value_ptr(v));
+                // else if constexpr (std::is_same_v<T, glm::mat3x3>)
+                //     glUniformMatrix3fv(_location, 1, false, glm::value_ptr(v));
+                // else if constexpr (std::is_same_v<T, glm::mat4x4>)
+                //     glUniformMatrix4fv(_location, 1, false, glm::value_ptr(v));
                 else if constexpr (std::is_same_v<T, const std::vector<float>>)
                     glUniform1fv(_location, (GLsizei) v.size(), v.data());
             },
