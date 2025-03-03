@@ -87,7 +87,7 @@ def update_submodules():
             utils.rip(f"{dir} not found. your working directory might be corrupted. Please consider re-cloning.")
         items = dir.iterdir()
         if len(list(items)) == 0 :
-            git("submodule update --init")
+            git("submodule update --init --recursive")
             break
 
 def get_android_path(name):

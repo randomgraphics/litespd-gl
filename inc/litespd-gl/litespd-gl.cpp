@@ -303,11 +303,11 @@ static void printGLInfo(bool printExtensionList) {
     if (printExtensionList) {
         info << "---------------------------------------------------\n";
         std::vector<std::string> extensions;
-        GLint                    n = 0;
-        glGetIntegerv(GL_NUM_EXTENSIONS, &n);
-        for (int i = 0; i < n; ++i) { extensions.push_back((const char *) glGetStringi(GL_EXTENSIONS, i)); }
+        GLuint                    n = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, (GLint*)&n);
+        for (GLuint i = 0; i < n; ++i) { extensions.push_back((const char *) glGetStringi(GL_EXTENSIONS, i)); }
         std::sort(extensions.begin(), extensions.end());
-        for (int i = 0; i < n; ++i) { info << "    " << extensions[i] << "\n"; }
+        for (GLuint i = 0; i < n; ++i) { info << "    " << extensions[i] << "\n"; }
     }
 
     info << "===================================================\n";
@@ -379,14 +379,14 @@ void TextureObject::attach(GLenum target, GLuint id) {
     glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &maxLevel);
     _desc.mips = (uint32_t) maxLevel + 1;
 
-    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &_desc.internalFormat);
+    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, (GLint*)&_desc.internalFormat);
 
     unbind();
 }
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t m) {
+void TextureObject::allocate2D(GLenum internalFormat, size_t w, size_t h, size_t m) {
     cleanup();
     _desc.target         = GL_TEXTURE_2D;
     _desc.internalFormat = internalFormat;
@@ -405,7 +405,7 @@ void TextureObject::allocate2D(GLint internalFormat, size_t w, size_t h, size_t 
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, size_t l, size_t m) {
+void TextureObject::allocate2DArray(GLenum internalFormat, size_t w, size_t h, size_t l, size_t m) {
     cleanup();
     _desc.target         = GL_TEXTURE_2D_ARRAY;
     _desc.internalFormat = internalFormat;
@@ -424,7 +424,7 @@ void TextureObject::allocate2DArray(GLint internalFormat, size_t w, size_t h, si
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::allocateCube(GLint internalFormat, size_t w, size_t m) {
+void TextureObject::allocateCube(GLenum internalFormat, size_t w, size_t m) {
     cleanup();
     _desc.target         = GL_TEXTURE_CUBE_MAP;
     _desc.internalFormat = internalFormat;
@@ -447,7 +447,7 @@ void TextureObject::applyDefaultParameters() {
     LGI_ASSERT(_desc.depth > 0);
     LGI_ASSERT(_desc.mips > 0);
     LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_BASE_LEVEL, 0));
-    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, _desc.mips - 1));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, (GLint)_desc.mips - 1));
     LGI_CHK(
         glTexParameteri(_desc.target, GL_TEXTURE_MIN_FILTER, _desc.mips > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
     LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
@@ -533,7 +533,7 @@ void SimpleFBO::cleanup() {
 
 // -----------------------------------------------------------------------------
 //
-void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * colorFormats) {
+void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLenum * colorFormats) {
     LGI_CHK(;); // make sure there's no preexisting conditions.
 
     cleanup(); // release existing buffers.
@@ -565,12 +565,12 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * 
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, levels, cf, _mips[0].width, _mips[0].height));
-            for (int l = 0; l < (int) _mips.size(); ++l) {
+            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, (GLsizei)levels, cf, (GLsizei)_mips[0].width, (GLsizei)_mips[0].height));
+            for (size_t l = 0; l < _mips.size(); ++l) {
                 auto & m = _mips[l];
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
                 LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, (GLenum) (GL_COLOR_ATTACHMENT0 + i), GL_TEXTURE_2D,
-                                               _colors[i].texture, l));
+                                               _colors[i].texture, (GLint)l));
             }
             drawBuffers[i] = (GLenum) (GL_COLOR_ATTACHMENT0 + i);
         }
@@ -602,13 +602,13 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * 
         LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
         LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
         LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-        for (int l = 0; l < (int) _mips.size(); ++l) {
+        for (size_t l = 0; l < _mips.size(); ++l) {
             auto & m = _mips[l];
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
             // Note: switching to 16-bit (GL_UNSIGNED_SHORT) depth buffer gives about 3ms performance boost.
-            LGI_CHK(glTexImage2D(GL_TEXTURE_2D, l, GL_DEPTH_COMPONENT, m.width, m.height, 0, GL_DEPTH_COMPONENT,
+            LGI_CHK(glTexImage2D(GL_TEXTURE_2D, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.height, 0, GL_DEPTH_COMPONENT,
                                  GL_UNSIGNED_INT, nullptr));
-            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, l));
+            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, (GLint)l));
         }
     }
 
@@ -655,7 +655,7 @@ void SimpleFBO::saveDepthToFile(const std::string & filepath) const {
 
 // -----------------------------------------------------------------------------
 //
-void CubeFBO::allocate(uint32_t w, uint32_t levels, GLint internalFormat) {
+void CubeFBO::allocate(uint32_t w, uint32_t levels, GLenum internalFormat) {
     cleanup(); // release existing buffers.
 
     LGI_ASSERT(w > 0);
@@ -680,12 +680,12 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLint internalFormat) {
         LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
         LGI_CHK(glTexStorage2D(GL_TEXTURE_CUBE_MAP, (GLsizei) _mips.size(), internalFormat, (GLsizei) _mips[0].width,
                                (GLsizei) _mips[0].width));
-        for (int l = 0; l < (int) _mips.size(); ++l) {
+        for (size_t l = 0; l < _mips.size(); ++l) {
             const auto & m = _mips[l];
             for (int i = 0; i < 6; ++i) {
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                               _color, l));
+                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, (GLenum)(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i),
+                                               _color, (GLint)l));
             }
         }
     } else {
@@ -713,14 +713,14 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLint internalFormat) {
     LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
     LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
     LGI_CHK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-    for (int l = 0; l < (int) _mips.size(); ++l) {
+    for (size_t l = 0; l < _mips.size(); ++l) {
         const auto & m = _mips[l];
-        for (int i = 0; i < 6; ++i) {
+        for (unsigned int i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-            LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, l, GL_DEPTH_COMPONENT, m.width, m.width, 0,
+            LGI_CHK(glTexImage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.width, 0,
                                  GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
             LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                           _depth, l));
+                                           _depth, (GLint)l));
         }
     }
 

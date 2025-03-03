@@ -312,7 +312,7 @@ void updateUniformValue(GLint location, const T & value) {
     }
 }
 
-inline void clearScreen(const glm::vec4 & color = {0.f, 0.f, 0.f, 1.f}, float depth = 1.0f, uint32_t stencil = 0,
+inline void clearScreen(const glm::vec4 & color = {0.f, 0.f, 0.f, 1.f}, float depth = 1.0f, int stencil = 0,
                         GLbitfield flags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT) {
     if (flags | GL_COLOR_BUFFER_BIT) glClearColor(color.x, color.y, color.z, color.w);
     if (flags | GL_DEPTH_BUFFER_BIT) glClearDepthf(depth);
@@ -326,9 +326,9 @@ inline GLint getInt(GLenum name) {
     return value;
 }
 
-inline GLint getInt(GLenum name, GLint i) {
+inline GLint getInt(GLenum name, GLuint index) {
     GLint value;
-    glGetIntegeri_v(name, i, &value);
+    glGetIntegeri_v(name, index, &value);
     return value;
 }
 
@@ -746,7 +746,7 @@ public:
     struct TextureDesc {
         GLuint   id = 0; // all other fields are undefined, if id is 0.
         GLenum   target;
-        GLint    internalFormat;
+        GLenum   internalFormat;
         uint32_t width;
         uint32_t height;
         uint32_t depth; // this is number of layers for 2D array texture and is
@@ -769,11 +769,11 @@ public:
 
     void attach(const TextureObject & that) { attach(that._desc.target, that._desc.id); }
 
-    void allocate2D(GLint f, size_t w, size_t h, size_t m = 1);
+    void allocate2D(GLenum f, size_t w, size_t h, size_t m = 1);
 
-    void allocate2DArray(GLint f, size_t w, size_t h, size_t l, size_t m = 1);
+    void allocate2DArray(GLenum f, size_t w, size_t h, size_t l, size_t m = 1);
 
-    void allocateCube(GLint f, size_t w, size_t m = 1);
+    void allocateCube(GLenum f, size_t w, size_t m = 1);
 
     void setPixels(size_t level, size_t x, size_t y, size_t w, size_t h,
                    size_t       rowPitchInBytes, // set to 0, if pixels are tightly packed.
@@ -797,7 +797,7 @@ public:
     }
 
     void bind(size_t stage) const {
-        LGI_DCHK(glActiveTexture(GL_TEXTURE0 + (int) stage));
+        LGI_DCHK(glActiveTexture((GLenum)(GL_TEXTURE0 + stage)));
         LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     }
 
@@ -820,7 +820,7 @@ class SimpleFBO {
     };
 
     struct RenderTarget {
-        GLint  internalFormat = 0;
+        GLenum internalFormat = 0;
         GLuint texture        = 0;
     };
 
@@ -840,16 +840,16 @@ public:
 
     void cleanup();
 
-    void allocate(uint32_t w, uint32_t h, uint32_t levels, const GLint * cf);
+    void allocate(uint32_t w, uint32_t h, uint32_t levels, const GLenum * cf);
 
-    void allocate(uint32_t w, uint32_t h, uint32_t levels, GLint cf) {
+    void allocate(uint32_t w, uint32_t h, uint32_t levels, GLenum cf) {
         LGI_REQUIRE(1 == COLOR_BUFFER_COUNT);
         allocate(w, h, levels, &cf);
     }
 
-    void allocate(uint32_t w, uint32_t h, uint32_t levels, GLint cf1, GLint cf2) {
+    void allocate(uint32_t w, uint32_t h, uint32_t levels, GLenum cf1, GLenum cf2) {
         LGI_REQUIRE(2 == COLOR_BUFFER_COUNT);
-        GLint formats[] = {cf1, cf2};
+        GLenum formats[] = {cf1, cf2};
         allocate(w, h, levels, formats);
     }
 
@@ -861,7 +861,7 @@ public:
 
     uint32_t getFBO(size_t level) const { return _mips[level].fbo; }
 
-    void setColorTextureFilter(uint32_t rt, GLenum minFilter, GLenum maxFilter) {
+    void setColorTextureFilter(uint32_t rt, GLint minFilter, GLint maxFilter) {
         LGI_DCHK(glBindTexture(_colorTextureTarget, _colors[rt].texture));
         LGI_DCHK(glTexParameteri(_colorTextureTarget, GL_TEXTURE_MIN_FILTER, minFilter));
         LGI_DCHK(glTexParameteri(_colorTextureTarget, GL_TEXTURE_MAG_FILTER, maxFilter));
@@ -890,7 +890,7 @@ public:
 
     GLenum getColorTarget() const { return _colorTextureTarget; }
     GLuint getColorTexture(size_t rt) const { return _colors[rt].texture; }
-    GLint  getColorFormat(size_t rt) const { return _colors[rt].internalFormat; }
+    GLenum getColorFormat(size_t rt) const { return _colors[rt].internalFormat; }
 
     void saveColorToFile(uint32_t rt, const std::string & filepath) const;
     void saveDepthToFile(const std::string & filepath) const;
@@ -921,7 +921,7 @@ public:
         _mips.clear();
     }
 
-    void allocate(uint32_t w, uint32_t levels, GLint cf);
+    void allocate(uint32_t w, uint32_t levels, GLenum cf);
 
     uint32_t getLevels() const { return (uint32_t) _mips.size(); }
 
@@ -940,13 +940,13 @@ public:
     }
 
     void bindColorAsTexture(int slot = -1) const {
-        GLenum stage = (slot >= 0) ? slot : 0;
+        auto stage = (slot >= 0) ? slot : 0;
         glActiveTexture(GLenum(GL_TEXTURE0 + stage));
         glBindTexture(GL_TEXTURE_CUBE_MAP, _color);
     }
 
     void bindDepthAsTexture(int slot = -1) const {
-        GLenum stage = (slot >= 0) ? slot : 1;
+        auto stage = (slot >= 0) ? slot : 1;
         glActiveTexture(GLenum(GL_TEXTURE0 + stage));
         glBindTexture(GL_TEXTURE_CUBE_MAP, _depth);
     }
@@ -985,7 +985,7 @@ struct DebugSSBO {
 #endif
     }
 
-    void bind(int slot = 15) const {
+    void bind(GLuint slot = 15) const {
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
         if (g) glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, g);
 #else
