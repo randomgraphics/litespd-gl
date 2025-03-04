@@ -181,10 +181,10 @@ SOFTWARE.
 
 #define LGI_STR_HELPER(x) #x
 
-#define LGI_LOGE(...) LITESPD_GL_LOG_ERROR(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
-#define LGI_LOGW(...) LITESPD_GL_LOG_WARNING(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
-#define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
-#define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__).c_str())
+#define LGI_LOGE(...) LITESPD_GL_LOG_ERROR(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
+#define LGI_LOGW(...) LITESPD_GL_LOG_WARNING(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
+#define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
+#define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
 #define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
 #else
@@ -195,7 +195,7 @@ SOFTWARE.
     do {                                                                                 \
         std::stringstream errorStream_;                                                  \
         errorStream_ << __FILE__ << "(" << __LINE__                                      \
-                     << "): " << LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
+                     << "): " << LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__); \
         auto errorString_ = errorStream_.str();                                          \
         LGI_LOGE("%s", errorString_.data());                                             \
         LITESPD_GL_THROW(errorString_);                                                  \
@@ -204,7 +204,7 @@ SOFTWARE.
 #define LGI_REQUIRE(condition, ...)                                                       \
     do {                                                                                  \
         if (!(condition)) {                                                               \
-            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgl_details::format(__VA_ARGS__); \
+            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__); \
             LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str());    \
         }                                                                                 \
     } while (false)
@@ -263,11 +263,11 @@ namespace LITESPD_GL_NAMESPACE {
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
 #endif
 
-namespace lgl_details {
+namespace lgi {
 /// @brief Format string using printf style format.
 std::string        format(const char * fmt, ...);
 inline std::string format() { return {}; }
-} // namespace lgl_details
+} // namespace lgi
 
 #if LITESPD_GL_ENABLE_GLAD
 /// @brief Load all GL extension functions using GLAD.
@@ -331,17 +331,6 @@ inline GLint getInt(GLenum name, GLuint index) {
     glGetIntegeri_v(name, index, &value);
     return value;
 }
-
-// -----------------------------------------------------------------------------
-//
-struct InternalFormatDesc {
-    GLenum   internalFormat;
-    GLenum   format;
-    GLenum   type;
-    uint32_t bits;
-
-    static const InternalFormatDesc & describe(GLenum internalFormat);
-};
 
 // -----------------------------------------------------------------------------
 //
@@ -776,12 +765,13 @@ public:
     void allocateCube(GLenum f, size_t w, size_t m = 1);
 
     void setPixels(size_t level, size_t x, size_t y, size_t w, size_t h,
-                   size_t       rowPitchInBytes, // set to 0, if pixels are tightly packed.
-                   const void * pixels) const;
+                   const void * pixels,
+                   size_t       rowlength, // number of pixels in each row. set to 0, if pixels are tightly packed.
+                   GLenum format, GLenum type) const;
 
     // Set to rowPitchInBytes 0, if pixels are tightly packed.
-    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes,
-                   const void * pixels) const;
+    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h,
+                   const void * pixels, size_t rowLength, GLenum format, GLenum type) const;
 
     // jedi::ManagedRawImage getBaseLevelPixels() const;
 

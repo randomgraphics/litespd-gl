@@ -53,7 +53,7 @@ extern "C" __declspec(dllimport) void __stdcall DebugBreak();
 
 namespace LITESPD_GL_NAMESPACE {
 
-namespace lgl_details {
+namespace lgi {
 
 std::string format(const char * fmt, ...) {
     va_list args;
@@ -83,7 +83,7 @@ std::string ns2str(uint64_t ns) {
     return s.str();
 }
 
-} // namespace lgl_details
+} // namespace lgi
 
 #if LITESPD_GL_ENABLE_DEBUG_BUILD && LITESPD_GL_ENABLE_GLAD
 // -----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ static void initializeOpenGLDebugRuntime() {
                 break;
             }
 
-            std::string s = lgl_details::format("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id,
+            std::string s = lgi::format("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id,
                                                 source2String(source), type2String(type), severity2String(severity),
                                                 message, LITESPD_GL_BACKTRACE().c_str());
             if (error_)
@@ -457,31 +457,26 @@ void TextureObject::applyDefaultParameters() {
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, size_t rowPitchInBytes,
-                              const void * pixels) const {
+void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels, size_t rowLength,
+                              GLenum format, GLenum type) const {
     if (empty()) return;
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
-    auto & cf = InternalFormatDesc::describe(_desc.internalFormat);
-    LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
-    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, cf.format,
-                             cf.type, pixels));
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)rowLength);
+    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, format, type, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     LGI_CHK(;);
 }
 
 void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h,
-                              size_t rowPitchInBytes, const void * pixels) const {
+                              const void * pixels, size_t rowLength, GLenum format, GLenum type) const {
     if (empty()) return;
 
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
-    auto & cf = InternalFormatDesc::describe(_desc.internalFormat);
-    LGI_ASSERT(0 == (rowPitchInBytes * 8 % cf.bits));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) (rowPitchInBytes * 8 / cf.bits));
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)rowLength);
     LGI_DCHK(glTexSubImage3D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLint) layer, (GLsizei) w, (GLsizei) h,
-                             1, cf.format, cf.type, pixels));
+                             1, format, type, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     LGI_CHK(;);
 }
@@ -835,7 +830,7 @@ static std::string addLineCount(const std::string & in) {
     int line = 1;
     for (auto ch : in) {
         if ('\n' == ch)
-            ss << lgl_details::format("\n(%3d) : ", ++line);
+            ss << lgi::format("\n(%3d) : ", ++line);
         else
             ss << ch;
     }
@@ -1007,7 +1002,7 @@ bool SimpleTextureCopy::init() {
     // tex2d program
     {
         auto & prog2d = _programs[GL_TEXTURE_2D];
-        auto   ps2d   = lgl_details::format(pscode, "sampler2D", "u_uv");
+        auto   ps2d   = lgi::format(pscode, "sampler2D", "u_uv");
         if (!prog2d.program.loadVsPs(vscode, pscode)) return false;
         prog2d.tex0Binding = prog2d.program.getUniformBinding("u_tex0");
     }
@@ -1015,7 +1010,7 @@ bool SimpleTextureCopy::init() {
     // tex2d array program
     {
         auto & prog2darray = _programs[GL_TEXTURE_2D_ARRAY];
-        auto   ps2darray   = lgl_details::format(pscode, "sampler2DArray", "vec3(u_uv, 0.)");
+        auto   ps2darray   = lgi::format(pscode, "sampler2DArray", "vec3(u_uv, 0.)");
         if (!prog2darray.program.loadVsPs(vscode, pscode)) return false;
         prog2darray.tex0Binding = prog2darray.program.getUniformBinding("u_tex0");
     }
@@ -1111,7 +1106,7 @@ void GpuTimeElapsedQuery::stop() {
 // -----------------------------------------------------------------------------
 //
 std::string GpuTimeElapsedQuery::print() const {
-    return lgl_details::format("%s : %s"), name.c_str(), lgl_details::ns2str(duration()).c_str();
+    return lgi::format("%s : %s"), name.c_str(), lgi::ns2str(duration()).c_str();
 }
 
 // -----------------------------------------------------------------------------
@@ -1126,7 +1121,7 @@ std::string GpuTimestamps::print(const char * ident) const {
         ss << ident << "all timestamp queries are pending...\n";
     } else {
 
-        auto getDuration = [](uint64_t a, uint64_t b) { return b >= a ? lgl_details::ns2str(b - a) : "  <n/a>"; };
+        auto getDuration = [](uint64_t a, uint64_t b) { return b >= a ? lgi::ns2str(b - a) : "  <n/a>"; };
 
         size_t maxlen = 0;
         for (size_t i = 1; i < _marks.size(); ++i) { maxlen = std::max(_marks[i].name.size(), maxlen); }
