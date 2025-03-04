@@ -487,7 +487,7 @@ struct BufferObject {
         // we create buffer that is large enough to hold at least one element.
         length = std::max(count, MIN_GPU_BUFFER_LENGH) * sizeof(T);
         LGI_CHK(glBindBuffer(T2, bo));
-        LGI_CHK(glBufferData(T2, length, ptr, usage));
+        LGI_CHK(glBufferData(T2, (GLsizeiptr)length, ptr, usage));
         LGI_CHK(glBindBuffer(T2, 0)); // unbind
     }
 
@@ -501,7 +501,7 @@ struct BufferObject {
     template<typename T, GLenum T2 = TARGET>
     void update(const T * ptr, size_t offset = 0, size_t count = 1) {
         LGI_DCHK(glBindBuffer(T2, bo));
-        LGI_DCHK(glBufferSubData(T2, offset * sizeof(T), count * sizeof(T), ptr));
+        LGI_DCHK(glBufferSubData(T2, (GLintptr)(offset * sizeof(T)), (GLsizeiptr)(count * sizeof(T)), ptr));
     }
 
     template<GLenum T2 = TARGET>
@@ -523,7 +523,7 @@ struct BufferObject {
     void getData(T * ptr, size_t offset, size_t count) {
         LGI_DCHK(glBindBuffer(T2, bo));
         void * mapped = nullptr;
-        LGI_DCHK(mapped = glMapBufferRange(T2, offset * sizeof(T), count * sizeof(T), GL_MAP_READ_BIT));
+        LGI_DCHK(mapped = glMapBufferRange(T2, (GLintptr)(offset * sizeof(T)), (GLsizeiptr)(count * sizeof(T)), GL_MAP_READ_BIT));
         if (mapped) {
             std::memcpy(ptr, mapped, count * sizeof(T));
             LGI_DCHK(glUnmapBuffer(T2));

@@ -717,7 +717,7 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLenum internalFormat) {
         const auto & m = _mips[l];
         for (unsigned int i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-            LGI_CHK(glTexImage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.width, 0,
+            LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.width, 0,
                                  GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
             LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                                            _depth, (GLint)l));
@@ -727,9 +727,9 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLenum internalFormat) {
     // todo: stencil?
 
     // make sure the FBO is ready to use.
-    for (int l = 0; l < (int) _mips.size(); ++l) {
+    for (size_t l = 0; l < _mips.size(); ++l) {
         const auto & m = _mips[l];
-        for (int i = 0; i < 6; ++i) {
+        for (size_t i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
             auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
             LGI_REQUIRE(GL_FRAMEBUFFER_COMPLETE == status);
@@ -969,9 +969,11 @@ void SimpleSprite::cleanup() {
 void SimpleSprite::draw(GLuint texture, const glm::vec4 & pos, const glm::vec4 & uv) {
     _quad.update(pos, uv);
     _program.use();
-    glActiveTexture(GL_TEXTURE0 + _tex0Binding);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBindSampler(_tex0Binding, _sampler);
+    if (_tex0Binding >= 0) {
+        glActiveTexture(GL_TEXTURE0 + (GLenum)_tex0Binding);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glBindSampler((GLuint)_tex0Binding, _sampler);
+    }
     _quad.draw();
 }
 
@@ -1048,18 +1050,18 @@ void SimpleTextureCopy::copy(const TextureSubResource & src, const TextureSubRes
     // get destination texture size
     uint32_t dstw = 0, dsth = 0;
     glBindTexture(dst.target, dst.id);
-    glGetTexLevelParameteriv(dst.target, dst.level, GL_TEXTURE_WIDTH, (GLint *) &dstw);
-    glGetTexLevelParameteriv(dst.target, dst.level, GL_TEXTURE_HEIGHT, (GLint *) &dsth);
+    glGetTexLevelParameteriv(dst.target, (GLsizei)dst.level, GL_TEXTURE_WIDTH, (GLint *) &dstw);
+    glGetTexLevelParameteriv(dst.target, (GLsizei)dst.level, GL_TEXTURE_HEIGHT, (GLint *) &dsth);
 
     // attach FBO to the destination texture
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
     switch (dst.target) {
     case GL_TEXTURE_2D:
-        glFramebufferTexture1D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst.id, dst.level);
+        glFramebufferTexture1D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst.id, (GLsizei)dst.level);
         break;
 
     case GL_TEXTURE_2D_ARRAY:
-        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst.id, dst.level, dst.z);
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst.id, (GLsizei)dst.level, (GLsizei)dst.z);
         break;
 
     default:
@@ -1083,10 +1085,12 @@ void SimpleTextureCopy::copy(const TextureSubResource & src, const TextureSubRes
 
     // do the copy
     prog.program.use();
-    glActiveTexture(GL_TEXTURE0 + prog.tex0Binding);
-    glBindTexture(src.target, src.id);
-    glBindSampler(prog.tex0Binding, _sampler);
-    glViewport(0, 0, dstw, dsth);
+    if (prog.tex0Binding >= 0) {
+        glActiveTexture(GL_TEXTURE0 + (GLuint)prog.tex0Binding);
+        glBindTexture(src.target, src.id);
+        glBindSampler((GLuint)prog.tex0Binding, _sampler);
+    }
+    glViewport(0, 0, (GLsizei)dstw, (GLsizei)dsth);
     _quad.draw();
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
