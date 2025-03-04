@@ -73,19 +73,21 @@ def git(cmdline):
         sys.exit(1)
 
 def update_submodules():
-    submodules = [
-        # list all submodules here to automatically fetch them as part of the build process.
-        "dev/3rd-party/backward-cpp",
-        "dev/3rd-party/glfw",
-        "dev/3rd-party/cli11"
-    ]
+    # parse sumodule list from the .gitmodules file.
+    submodules = []
+    with open(sdk_root_dir / ".gitmodules", "r") as f:
+        for line in f:
+            if "path" in line:
+                submodules.append(line.split("=")[1].strip())
+    #print(submodules)
+
     for s in submodules:
         dir = sdk_root_dir / s
         if not dir.is_dir():
             utils.rip(f"{dir} not found. your working directory might be corrupted. Please consider re-cloning.")
         items = dir.iterdir()
         if len(list(items)) == 0 :
-            git("submodule update --init")
+            git("submodule update --init --recursive")
             break
 
 def get_android_path(name):

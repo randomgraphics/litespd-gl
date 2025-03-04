@@ -1,3 +1,7 @@
+# Look for OpenGL
+find_package(OpenGL REQUIRED)
+link_libraries(OpenGL::GL)
+
 # setup list of system specific dependencies
 if (ANDROID)
     link_libraries(log)
@@ -11,6 +15,7 @@ else()
         option(GLFW_BUILD_TESTS "" OFF)
         option(GLFW_BUILD_DOCS "" OFF)
         option(GLFW_INSTALL "" OFF)
+        option(GLFW_BUILD_WAYLAND "" OFF)
         add_subdirectory(3rd-party/glfw)
     endfunction()
     build_glfw()
@@ -25,6 +30,7 @@ function(build_glad)
     target_include_directories(glad PUBLIC 3rd-party/glad/include)
 endfunction()
 build_glad()
+link_libraries(glad)
 
 # Setup common build flags form samples and tests
 if (MSVC)
@@ -32,12 +38,13 @@ if (MSVC)
 else()
     add_compile_options(-Wall -Wextra -Wconversion -Wshadow -Werror -Wfatal-errors)
 endif()
-include_directories(../inc 3rd-party)
+include_directories(../inc 3rd-party 3rd-party/glm)
 add_compile_definitions($<$<CONFIG:Debug>:LITESPD_GL_ENABLE_DEBUG_BUILD=1>)
 set(CMAKE_CXX_STANDARD 17)
 
 # Build litespd-gl into a static library
 add_library(litespd-gl-static STATIC lgl.cpp)
+link_libraries(litespd-gl-static)
 
 # Build subfolders
 add_subdirectory(sample)
