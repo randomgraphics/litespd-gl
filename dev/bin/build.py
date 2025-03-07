@@ -3,10 +3,14 @@
 from ctypes import util
 import sys, subprocess, os, platform, pathlib, argparse, shutil, glob
 
-import importlib; utils = importlib.import_module("litespd-gl-utils")
+import importlib
+
+utils = importlib.import_module("litespd-gl-utils")
+
 
 def check_windows_container():
     return os.name == "nt" and os.environ.get("USERNAME") == "ContainerAdministrator"
+
 
 def get_cmake_build_type(args):
     # determine build type
@@ -46,31 +50,34 @@ def get_cmake_build_type(args):
         compiler = "clang" if args.use_clang else "xcode" if args.use_xcode else "gcc"
         build_dir = build_dir / f"{system.lower()}.{compiler}{suffix}"
 
-    #done
+    # done
     return [build_type, build_dir, android_abi]
+
 
 # Run cmake command. the args is list of arguments.
 def cmake(build_dir, cmdline):
     if not isinstance(cmdline, list):
         cmdline = str(cmdline).split()
     cmd = ["cmake"] + cmdline
-    print(' '.join(cmd))
+    print(" ".join(cmd))
     try:
         subprocess.check_call(cmd, cwd=build_dir)
     except subprocess.CalledProcessError as err:
         print(f"[ERROR] cmake failed. ErrorCode = {err.returncode}")
         sys.exit(err.returncode)
 
+
 def git(cmdline):
     if not isinstance(cmdline, list):
         cmdline = str(cmdline).split()
     cmd = ["git"] + cmdline
-    print(' '.join(cmd))
+    print(" ".join(cmd))
     try:
         subprocess.check_call(cmd, cwd=sdk_root_dir)
     except:
         print("[ERROR] GIT process exits with non-zero exit code.")
         sys.exit(1)
+
 
 def update_submodules():
     # parse sumodule list from the .gitmodules file.
@@ -79,22 +86,26 @@ def update_submodules():
         for line in f:
             if "path" in line:
                 submodules.append(line.split("=")[1].strip())
-    #print(submodules)
+    # print(submodules)
 
     for s in submodules:
         dir = sdk_root_dir / s
         if not dir.is_dir():
             utils.rip(f"{dir} not found. your working directory might be corrupted. Please consider re-cloning.")
         items = dir.iterdir()
-        if len(list(items)) == 0 :
+        if len(list(items)) == 0:
             git("submodule update --init --recursive")
             break
 
+
 def get_android_path(name):
-    if os.environ.get(name) is None: utils.rip(f"{name} environment variable not found.")
+    if os.environ.get(name) is None:
+        utils.rip(f"{name} environment variable not found.")
     p = pathlib.Path(os.getenv(name))
-    if not p.is_dir(): utils.rip(f"{p} folder not found.")
+    if not p.is_dir():
+        utils.rip(f"{p} folder not found.")
     return p
+
 
 def cmake_config(args, build_dir, build_type):
     update_submodules()
@@ -102,13 +113,14 @@ def cmake_config(args, build_dir, build_type):
     config = f"-S {sdk_root_dir} -B {build_dir} -DCMAKE_BUILD_TYPE={build_type}"
     if args.android_build:
         # Support only arm64 for now
-        sdk = get_android_path('ANDROID_SDK_ROOT')
-        ndk = get_android_path('ANDROID_NDK_HOME')
+        sdk = get_android_path("ANDROID_SDK_ROOT")
+        ndk = get_android_path("ANDROID_NDK_HOME")
         utils.logi(f"Using Android SDK: {sdk}")
         utils.logi(f"Using Android NDK: {ndk}")
-        if 'Windows' == platform.system():
+        if "Windows" == platform.system():
             ninja = sdk / "cmake/3.22.1/bin/ninja.exe"
-            if not ninja.exists(): utils.rip(f"{ninja} not found. Please install cmake 3.18+ via Android SDK Manager." )
+            if not ninja.exists():
+                utils.rip(f"{ninja} not found. Please install cmake 3.18+ via Android SDK Manager.")
         else:
             ninja = "ninja"
         toolchain = ndk / "build/cmake/android.toolchain.cmake"
@@ -125,11 +137,15 @@ def cmake_config(args, build_dir, build_type):
             -DANDROID_ABI={android_abi} \
             -DCMAKE_ANDROID_ARCH_ABI={android_abi} \
             "
-    elif 'Windows' != platform.system():
-        if args.use_clang: config += " -DCMAKE_C_COMPILER=clang-14 -DCMAKE_CXX_COMPILER=clang++-14"
-        if args.use_ninja: config += " -GNinja"
-        if args.use_xcode: config += " -GXcode"
+    elif "Windows" != platform.system():
+        if args.use_clang:
+            config += " -DCMAKE_C_COMPILER=clang-14 -DCMAKE_CXX_COMPILER=clang++-14"
+        if args.use_ninja:
+            config += " -GNinja"
+        if args.use_xcode:
+            config += " -GXcode"
     cmake(build_dir, config)
+
 
 # ==========
 # main
@@ -144,11 +160,14 @@ ap.add_argument("-C", dest="skip_config", action="store_true", help="Skip CMake 
 ap.add_argument("--clang", dest="use_clang", action="store_true", help="Use CLANG instead of GCC as the compiler. Default is GCC.")
 ap.add_argument("-n", dest="use_ninja", action="store_true", help="Use Ninja as the build generator. Default is Makefile.")
 ap.add_argument("-x", dest="use_xcode", action="store_true", help="Generate Xcode projects. Default is Makefile.")
-ap.add_argument("variant", help="Specify build variant. Acceptable values are: d(ebug)/p(rofile)/r(elease)/c(lean). "
-                                         "Note that all parameters alert this one will be considered \"extra\" and passed to CMake directly.")
+ap.add_argument(
+    "variant",
+    help="Specify build variant. Acceptable values are: d(ebug)/p(rofile)/r(elease)/c(lean). "
+    'Note that all parameters alert this one will be considered "extra" and passed to CMake directly.',
+)
 ap.add_argument("extra", nargs=argparse.REMAINDER, help="Extra arguments passing to cmake.")
 args = ap.parse_args()
-#print(args.extra)
+# print(args.extra)
 
 # get the root directory of the code base
 sdk_root_dir = utils.get_root_folder()
@@ -159,7 +178,7 @@ build_type, build_dir, android_abi = get_cmake_build_type(args)
 
 if build_type is None:
     if platform.system() == "Windows":
-        os.system('taskkill /f /im java.exe 2>nul')
+        os.system("taskkill /f /im java.exe 2>nul")
     else:
         # TODO: kill java process the Linux way.
         pass
@@ -171,7 +190,7 @@ else:
     if not args.skip_config:
         cmake_config(args, build_dir, build_type)
     if not args.config_only:
-        jobs = ["-j8"] # limit to 8 cores.
+        jobs = ["-j8"]  # limit to 8 cores.
         cmake(build_dir, ["--build", "."] + jobs + ["--config", build_type] + args.extra)
         # if args.install_destination_folder:
         #     inst_dir = str(pathlib.Path(args.install_destination_folder).absolute())

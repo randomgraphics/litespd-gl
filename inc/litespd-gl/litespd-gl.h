@@ -191,22 +191,21 @@ SOFTWARE.
 #define LGI_LOGD(...) void(0)
 #endif
 
-#define LGI_THROW(...)                                                                   \
-    do {                                                                                 \
-        std::stringstream errorStream_;                                                  \
-        errorStream_ << __FILE__ << "(" << __LINE__                                      \
-                     << "): " << LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__); \
-        auto errorString_ = errorStream_.str();                                          \
-        LGI_LOGE("%s", errorString_.data());                                             \
-        LITESPD_GL_THROW(errorString_);                                                  \
+#define LGI_THROW(...)                                                                                          \
+    do {                                                                                                        \
+        std::stringstream errorStream_;                                                                         \
+        errorStream_ << __FILE__ << "(" << __LINE__ << "): " << LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__); \
+        auto errorString_ = errorStream_.str();                                                                 \
+        LGI_LOGE("%s", errorString_.data());                                                                    \
+        LITESPD_GL_THROW(errorString_);                                                                         \
     } while (false)
 
-#define LGI_REQUIRE(condition, ...)                                                       \
-    do {                                                                                  \
-        if (!(condition)) {                                                               \
-            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__); \
-            LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str());    \
-        }                                                                                 \
+#define LGI_REQUIRE(condition, ...)                                                    \
+    do {                                                                               \
+        if (!(condition)) {                                                            \
+            auto errorMessage__ = LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__);      \
+            LGI_THROW("Condition " #condition " not met. %s", errorMessage__.c_str()); \
+        }                                                                              \
     } while (false)
 
 // Check OpenGL error. This check is enabled in both debug and release build.
@@ -476,7 +475,7 @@ struct BufferObject {
         // we create buffer that is large enough to hold at least one element.
         length = std::max(count, MIN_GPU_BUFFER_LENGH) * sizeof(T);
         LGI_CHK(glBindBuffer(T2, bo));
-        LGI_CHK(glBufferData(T2, (GLsizeiptr)length, ptr, usage));
+        LGI_CHK(glBufferData(T2, (GLsizeiptr) length, ptr, usage));
         LGI_CHK(glBindBuffer(T2, 0)); // unbind
     }
 
@@ -490,7 +489,7 @@ struct BufferObject {
     template<typename T, GLenum T2 = TARGET>
     void update(const T * ptr, size_t offset = 0, size_t count = 1) {
         LGI_DCHK(glBindBuffer(T2, bo));
-        LGI_DCHK(glBufferSubData(T2, (GLintptr)(offset * sizeof(T)), (GLsizeiptr)(count * sizeof(T)), ptr));
+        LGI_DCHK(glBufferSubData(T2, (GLintptr) (offset * sizeof(T)), (GLsizeiptr) (count * sizeof(T)), ptr));
     }
 
     template<GLenum T2 = TARGET>
@@ -512,7 +511,8 @@ struct BufferObject {
     void getData(T * ptr, size_t offset, size_t count) {
         LGI_DCHK(glBindBuffer(T2, bo));
         void * mapped = nullptr;
-        LGI_DCHK(mapped = glMapBufferRange(T2, (GLintptr)(offset * sizeof(T)), (GLsizeiptr)(count * sizeof(T)), GL_MAP_READ_BIT));
+        LGI_DCHK(mapped = glMapBufferRange(T2, (GLintptr) (offset * sizeof(T)), (GLsizeiptr) (count * sizeof(T)),
+                                           GL_MAP_READ_BIT));
         if (mapped) {
             std::memcpy(ptr, mapped, count * sizeof(T));
             LGI_DCHK(glUnmapBuffer(T2));
@@ -764,14 +764,13 @@ public:
 
     void allocateCube(GLenum f, size_t w, size_t m = 1);
 
-    void setPixels(size_t level, size_t x, size_t y, size_t w, size_t h,
-                   const void * pixels,
-                   size_t       rowlength, // number of pixels in each row. set to 0, if pixels are tightly packed.
+    void setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels,
+                   size_t rowlength, // number of pixels in each row. set to 0, if pixels are tightly packed.
                    GLenum format, GLenum type) const;
 
     // Set to rowPitchInBytes 0, if pixels are tightly packed.
-    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h,
-                   const void * pixels, size_t rowLength, GLenum format, GLenum type) const;
+    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels,
+                   size_t rowLength, GLenum format, GLenum type) const;
 
     // jedi::ManagedRawImage getBaseLevelPixels() const;
 
@@ -787,7 +786,7 @@ public:
     }
 
     void bind(size_t stage) const {
-        LGI_DCHK(glActiveTexture((GLenum)(GL_TEXTURE0 + stage)));
+        LGI_DCHK(glActiveTexture((GLenum) (GL_TEXTURE0 + stage)));
         LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     }
 
@@ -1368,7 +1367,8 @@ public:
 
     // frame management
     bool beginFrame(); ///< Begin a new frame. Should be called in pair with endFrame if it returns true.
-    void endFrame(); ///< End current frane and present to screen. Must be called in paif with an successfull call to beginFrame.
+    void endFrame();   ///< End current frane and present to screen. Must be called in paif with an successfull call to
+                       ///< beginFrame.
 
     // unbound render context from current thread.
     static void clearCurrent();

@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import sys
-import importlib; utils = importlib.import_module("litespd-gl-utils")
+import importlib
+
+utils = importlib.import_module("litespd-gl-utils")
 if len(sys.argv) < 2:
     print("Usage: run-sample.py <sample-name> [args]")
     sys.exit(-1)

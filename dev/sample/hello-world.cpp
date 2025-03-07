@@ -5,7 +5,7 @@ int main() {
     litespd::gl::RenderContext rc;
 
     // Main loop
-    while(rc.beginFrame()) {
+    while (rc.beginFrame()) {
         // Clear the screen
         glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
