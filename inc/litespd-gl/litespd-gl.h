@@ -1366,9 +1366,9 @@ public:
     RenderContext(RenderContext && that): _impl(that._impl) { that._impl = nullptr; }
     RenderContext & operator=(RenderContext && that);
 
-    void swapBuffers();
-
-    void makeCurrent();
+    // frame management
+    bool beginFrame(); ///< Begin a new frame. Should be called in pair with endFrame if it returns true.
+    void endFrame(); ///< End current frane and present to screen. Must be called in paif with an successfull call to beginFrame.
 
     // unbound render context from current thread.
     static void clearCurrent();

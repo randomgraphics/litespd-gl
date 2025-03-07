@@ -1160,25 +1160,31 @@ public:
             glfwInit();
         }
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        _window = glfwCreateWindow(1, 1, "", nullptr, current);
+        _window = glfwCreateWindow(1280, 640, "", nullptr, current);
         if (!_window) LGI_THROW("Failed to create shared GLFW window.");
+        glfwShowWindow(_window);
     }
 
     virtual ~Impl() {
         if (_window) glfwDestroyWindow(_window), _window = nullptr;
     }
 
-    void makeCurrent() {
-        if (_window) {
-            glfwMakeContextCurrent(_window);
-        } else {
+    bool beginFrame() {
+        if (!_window) {
             LGI_LOGE("The RenderContext pointer was not properly initialized.");
+            return false;
         }
+        if (glfwWindowShouldClose(_window)) return false;
+        glfwMakeContextCurrent(_window);
+        return true;
     }
 
     static void clearCurrent() { glfwMakeContextCurrent(nullptr); }
 
-    void swapBuffers() { glfwSwapBuffers(_window); }
+    void endFrame() {
+        glfwSwapBuffers(_window);
+        glfwPollEvents();
+    }
 
 private:
     GLFWwindow * _window = nullptr;
@@ -1242,13 +1248,16 @@ public:
         return true;
     }
 
-    void makeCurrent() {
+    bool beginFrame() {
         if (!_rc) {
             LGI_LOGE("shared GL context is not properly initialized.");
-            return;
+            return false;
         }
 
-        if (!wglMakeCurrent(_dc, _rc)) { LGI_LOGE("wglMakeCurrent() failed."); }
+        if (!wglMakeCurrent(_dc, _rc)) { LGI_LOGE("wglMakeCurrent() failed."); return false; }
+
+        // done
+        return true;
     }
 
 private:
@@ -1319,18 +1328,19 @@ public:
 
     ~Impl() { destroy(); }
 
-    void makeCurrent() {
-        if (!eglMakeCurrent(_disp, _surf, _surf, _rc)) { LGI_LOGE("Failed to set current EGL context."); }
+    bool beginFrame() {
+        if (!eglMakeCurrent(_disp, _surf, _surf, _rc)) { LGI_LOGE("Failed to set current EGL context."); return false; }
+        return true;
     }
 
-    static void clearCurrent() { eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT); }
-
-    void swapBuffers() {
+    void endFrame() {
         if (!eglSwapBuffers(_disp, _surf)) {
             int error = eglGetError();
             LGI_LOGE("Post record render swap fail. ERROR: %x", error);
         }
     }
+
+    static void clearCurrent() { eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT); }
 
 private:
     // The context represented by this object.
@@ -1474,7 +1484,7 @@ RenderContext::RenderContext(Type t, WindowHandle w) {
     rcs.push();
 
     _impl = new Impl(w, t == SHARED);
-    makeCurrent();
+    beginFrame();
 #if LITESPD_GL_ENABLE_GLAD
     initGlad();
 #endif
@@ -1494,11 +1504,11 @@ RenderContext & RenderContext::operator=(RenderContext && that) {
     }
     return *this;
 }
-void RenderContext::makeCurrent() { _impl->makeCurrent(); }
-void RenderContext::clearCurrent() { Impl::clearCurrent(); }
-void RenderContext::swapBuffers() {
-    if (_impl) _impl->swapBuffers();
+bool RenderContext::beginFrame() { return _impl->beginFrame(); }
+void RenderContext::endFrame() {
+    if (_impl) _impl->endFrame();
 }
+void RenderContext::clearCurrent() { Impl::clearCurrent(); }
 
 class RenderContextStack::Impl {
     struct OpenGLRC {
