@@ -2,7 +2,7 @@
 
 int main() {
     // Create an OpenGL context with all default options.
-    litespd::gl::RenderContext rc;
+    litespd::gl::RenderContext rc({});
 
     // Main loop
     while (rc.beginFrame()) {

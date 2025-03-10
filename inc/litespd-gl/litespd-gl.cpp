@@ -1150,21 +1150,30 @@ std::string GpuTimestamps::print(const char * ident) const {
 #include <GLFW/glfw3.h>
 class RenderContext::Impl {
 public:
-    Impl(RenderContext::WindowHandle, bool shared) {
+    Impl(const RenderContext::CreateParams & cp) {
+        if (cp.externalWindow) {
+            LGI_THROW("External window is not supported in GLFW3 backend.");
+        }
         GLFWwindow * current = nullptr;
-        if (shared) {
+        if (cp.shared) {
             current = glfwGetCurrentContext();
             if (!current) {
                 LGI_THROW("No current GLFW window found.");
-                return;
             }
         } else {
             glfwInit();
         }
+#ifdef __APPLE__
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // Required on macOS
+#endif
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        _window = glfwCreateWindow(1280, 640, "", nullptr, current);
+        _window = glfwCreateWindow((int)cp.width, (int)cp.height, "", nullptr, current);
         if (!_window) LGI_THROW("Failed to create shared GLFW window.");
         glfwShowWindow(_window);
+        glfwMakeContextCurrent(_window);
     }
 
     virtual ~Impl() {
@@ -1486,17 +1495,14 @@ private:
     "RenderContext is not implemented for current platform. Enable GLFW3 feature of the litespd-gl library to fix this."
 #endif
 
-RenderContext::RenderContext(Type t, WindowHandle w) {
+RenderContext::RenderContext(const CreateParams & cp) {
     // store current context
     RenderContextStack rcs;
     rcs.push();
-
-    _impl = new Impl(w, t == SHARED);
-    beginFrame();
+    _impl = new Impl(cp);
 #if LITESPD_GL_ENABLE_GLAD
     initGlad();
 #endif
-
     // switch back to previous context
     rcs.pop();
 }
