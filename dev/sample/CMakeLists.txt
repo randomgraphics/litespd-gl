@@ -5,3 +5,4 @@ function (add_sample name)
 endfunction()
 
 add_sample(hello-world)
+add_sample(warp-grid)
