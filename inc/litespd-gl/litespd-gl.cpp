@@ -207,9 +207,9 @@ static void initializeOpenGLDebugRuntime() {
                 break;
             }
 
-            std::string s = lgi::format("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id,
-                                                source2String(source), type2String(type), severity2String(severity),
-                                                message, LITESPD_GL_BACKTRACE().c_str());
+            std::string s =
+                lgi::format("(id=[%d] source=[%s] type=[%s] severity=[%s]): %s\n%s", id, source2String(source),
+                            type2String(type), severity2String(severity), message, LITESPD_GL_BACKTRACE().c_str());
             if (error_)
                 LGI_LOGE("[GL ERROR] %s", s.c_str());
             else if (warning)
@@ -303,8 +303,8 @@ static void printGLInfo(bool printExtensionList) {
     if (printExtensionList) {
         info << "---------------------------------------------------\n";
         std::vector<std::string> extensions;
-        GLuint                    n = 0;
-        glGetIntegerv(GL_NUM_EXTENSIONS, (GLint*)&n);
+        GLuint                   n = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, (GLint *) &n);
         for (GLuint i = 0; i < n; ++i) { extensions.push_back((const char *) glGetStringi(GL_EXTENSIONS, i)); }
         std::sort(extensions.begin(), extensions.end());
         for (GLuint i = 0; i < n; ++i) { info << "    " << extensions[i] << "\n"; }
@@ -379,7 +379,7 @@ void TextureObject::attach(GLenum target, GLuint id) {
     glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &maxLevel);
     _desc.mips = (uint32_t) maxLevel + 1;
 
-    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, (GLint*)&_desc.internalFormat);
+    glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, (GLint *) &_desc.internalFormat);
 
     unbind();
 }
@@ -447,7 +447,7 @@ void TextureObject::applyDefaultParameters() {
     LGI_ASSERT(_desc.depth > 0);
     LGI_ASSERT(_desc.mips > 0);
     LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_BASE_LEVEL, 0));
-    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, (GLint)_desc.mips - 1));
+    LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAX_LEVEL, (GLint) _desc.mips - 1));
     LGI_CHK(
         glTexParameteri(_desc.target, GL_TEXTURE_MIN_FILTER, _desc.mips > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
     LGI_CHK(glTexParameteri(_desc.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
@@ -457,24 +457,25 @@ void TextureObject::applyDefaultParameters() {
 
 // -----------------------------------------------------------------------------
 //
-void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels, size_t rowLength,
-                              GLenum format, GLenum type) const {
+void TextureObject::setPixels(size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels,
+                              size_t rowLength, GLenum format, GLenum type) const {
     if (empty()) return;
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)rowLength);
-    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, format, type, pixels));
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) rowLength);
+    LGI_DCHK(glTexSubImage2D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLsizei) w, (GLsizei) h, format, type,
+                             pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     LGI_CHK(;);
 }
 
-void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h,
-                              const void * pixels, size_t rowLength, GLenum format, GLenum type) const {
+void TextureObject::setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels,
+                              size_t rowLength, GLenum format, GLenum type) const {
     if (empty()) return;
 
     LGI_DCHK(glBindTexture(_desc.target, _desc.id));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)rowLength);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, (int) rowLength);
     LGI_DCHK(glTexSubImage3D(_desc.target, (GLint) level, (GLint) x, (GLint) y, (GLint) layer, (GLsizei) w, (GLsizei) h,
                              1, format, type, pixels));
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -560,12 +561,13 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLenum *
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
             LGI_CHK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, (GLsizei)levels, cf, (GLsizei)_mips[0].width, (GLsizei)_mips[0].height));
+            LGI_CHK(glTexStorage2D(GL_TEXTURE_2D, (GLsizei) levels, cf, (GLsizei) _mips[0].width,
+                                   (GLsizei) _mips[0].height));
             for (size_t l = 0; l < _mips.size(); ++l) {
                 auto & m = _mips[l];
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
                 LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, (GLenum) (GL_COLOR_ATTACHMENT0 + i), GL_TEXTURE_2D,
-                                               _colors[i].texture, (GLint)l));
+                                               _colors[i].texture, (GLint) l));
             }
             drawBuffers[i] = (GLenum) (GL_COLOR_ATTACHMENT0 + i);
         }
@@ -601,9 +603,9 @@ void SimpleFBO::allocate(uint32_t w, uint32_t h, uint32_t levels, const GLenum *
             auto & m = _mips[l];
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo));
             // Note: switching to 16-bit (GL_UNSIGNED_SHORT) depth buffer gives about 3ms performance boost.
-            LGI_CHK(glTexImage2D(GL_TEXTURE_2D, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.height, 0, GL_DEPTH_COMPONENT,
-                                 GL_UNSIGNED_INT, nullptr));
-            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, (GLint)l));
+            LGI_CHK(glTexImage2D(GL_TEXTURE_2D, (GLsizei) l, GL_DEPTH_COMPONENT, (GLsizei) m.width, (GLsizei) m.height,
+                                 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
+            LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depth, (GLint) l));
         }
     }
 
@@ -679,8 +681,8 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLenum internalFormat) {
             const auto & m = _mips[l];
             for (int i = 0; i < 6; ++i) {
                 LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, (GLenum)(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i),
-                                               _color, (GLint)l));
+                LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                               (GLenum) (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), _color, (GLint) l));
             }
         }
     } else {
@@ -712,10 +714,10 @@ void CubeFBO::allocate(uint32_t w, uint32_t levels, GLenum internalFormat) {
         const auto & m = _mips[l];
         for (unsigned int i = 0; i < 6; ++i) {
             LGI_CHK(glBindFramebuffer(GL_FRAMEBUFFER, m.fbo[i]));
-            LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, (GLsizei)l, GL_DEPTH_COMPONENT, (GLsizei)m.width, (GLsizei)m.width, 0,
-                                 GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
+            LGI_CHK(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, (GLsizei) l, GL_DEPTH_COMPONENT, (GLsizei) m.width,
+                                 (GLsizei) m.width, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
             LGI_CHK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                           _depth, (GLint)l));
+                                           _depth, (GLint) l));
         }
     }
 
@@ -965,9 +967,9 @@ void SimpleSprite::draw(GLuint texture, const glm::vec4 & pos, const glm::vec4 &
     _quad.update(pos, uv);
     _program.use();
     if (_tex0Binding >= 0) {
-        glActiveTexture(GL_TEXTURE0 + (GLenum)_tex0Binding);
+        glActiveTexture(GL_TEXTURE0 + (GLenum) _tex0Binding);
         glBindTexture(GL_TEXTURE_2D, texture);
-        glBindSampler((GLuint)_tex0Binding, _sampler);
+        glBindSampler((GLuint) _tex0Binding, _sampler);
     }
     _quad.draw();
 }
@@ -1045,18 +1047,18 @@ void SimpleTextureCopy::copy(const TextureSubResource & src, const TextureSubRes
     // get destination texture size
     uint32_t dstw = 0, dsth = 0;
     glBindTexture(dst.target, dst.id);
-    glGetTexLevelParameteriv(dst.target, (GLsizei)dst.level, GL_TEXTURE_WIDTH, (GLint *) &dstw);
-    glGetTexLevelParameteriv(dst.target, (GLsizei)dst.level, GL_TEXTURE_HEIGHT, (GLint *) &dsth);
+    glGetTexLevelParameteriv(dst.target, (GLsizei) dst.level, GL_TEXTURE_WIDTH, (GLint *) &dstw);
+    glGetTexLevelParameteriv(dst.target, (GLsizei) dst.level, GL_TEXTURE_HEIGHT, (GLint *) &dsth);
 
     // attach FBO to the destination texture
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
     switch (dst.target) {
     case GL_TEXTURE_2D:
-        glFramebufferTexture1D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst.id, (GLsizei)dst.level);
+        glFramebufferTexture1D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst.id, (GLsizei) dst.level);
         break;
 
     case GL_TEXTURE_2D_ARRAY:
-        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst.id, (GLsizei)dst.level, (GLsizei)dst.z);
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst.id, (GLsizei) dst.level, (GLsizei) dst.z);
         break;
 
     default:
@@ -1081,11 +1083,11 @@ void SimpleTextureCopy::copy(const TextureSubResource & src, const TextureSubRes
     // do the copy
     prog.program.use();
     if (prog.tex0Binding >= 0) {
-        glActiveTexture(GL_TEXTURE0 + (GLuint)prog.tex0Binding);
+        glActiveTexture(GL_TEXTURE0 + (GLuint) prog.tex0Binding);
         glBindTexture(src.target, src.id);
-        glBindSampler((GLuint)prog.tex0Binding, _sampler);
+        glBindSampler((GLuint) prog.tex0Binding, _sampler);
     }
-    glViewport(0, 0, (GLsizei)dstw, (GLsizei)dsth);
+    glViewport(0, 0, (GLsizei) dstw, (GLsizei) dsth);
     _quad.draw();
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
@@ -1148,37 +1150,48 @@ std::string GpuTimestamps::print(const char * ident) const {
 #include <GLFW/glfw3.h>
 class RenderContext::Impl {
 public:
-    Impl(RenderContext::WindowHandle, bool shared) {
+    Impl(const RenderContext::CreateParams & cp) {
+        if (cp.externalWindow) { LGI_THROW("External window is not supported in GLFW3 backend."); }
         GLFWwindow * current = nullptr;
-        if (shared) {
+        if (cp.shared) {
             current = glfwGetCurrentContext();
-            if (!current) {
-                LGI_THROW("No current GLFW window found.");
-                return;
-            }
+            if (!current) { LGI_THROW("No current GLFW window found."); }
         } else {
             glfwInit();
         }
+#ifdef __APPLE__
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on macOS
+#endif
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        _window = glfwCreateWindow(1, 1, "", nullptr, current);
+        _window = glfwCreateWindow((int) cp.width, (int) cp.height, "", nullptr, current);
         if (!_window) LGI_THROW("Failed to create shared GLFW window.");
+        glfwShowWindow(_window);
+        glfwMakeContextCurrent(_window);
     }
 
     virtual ~Impl() {
         if (_window) glfwDestroyWindow(_window), _window = nullptr;
     }
 
-    void makeCurrent() {
-        if (_window) {
-            glfwMakeContextCurrent(_window);
-        } else {
+    bool beginFrame() {
+        if (!_window) {
             LGI_LOGE("The RenderContext pointer was not properly initialized.");
+            return false;
         }
+        if (glfwWindowShouldClose(_window)) return false;
+        glfwMakeContextCurrent(_window);
+        return true;
     }
 
     static void clearCurrent() { glfwMakeContextCurrent(nullptr); }
 
-    void swapBuffers() { glfwSwapBuffers(_window); }
+    void endFrame() {
+        glfwSwapBuffers(_window);
+        glfwPollEvents();
+    }
 
 private:
     GLFWwindow * _window = nullptr;
@@ -1242,13 +1255,19 @@ public:
         return true;
     }
 
-    void makeCurrent() {
+    bool beginFrame() {
         if (!_rc) {
             LGI_LOGE("shared GL context is not properly initialized.");
-            return;
+            return false;
         }
 
-        if (!wglMakeCurrent(_dc, _rc)) { LGI_LOGE("wglMakeCurrent() failed."); }
+        if (!wglMakeCurrent(_dc, _rc)) {
+            LGI_LOGE("wglMakeCurrent() failed.");
+            return false;
+        }
+
+        // done
+        return true;
     }
 
 private:
@@ -1319,18 +1338,22 @@ public:
 
     ~Impl() { destroy(); }
 
-    void makeCurrent() {
-        if (!eglMakeCurrent(_disp, _surf, _surf, _rc)) { LGI_LOGE("Failed to set current EGL context."); }
+    bool beginFrame() {
+        if (!eglMakeCurrent(_disp, _surf, _surf, _rc)) {
+            LGI_LOGE("Failed to set current EGL context.");
+            return false;
+        }
+        return true;
     }
 
-    static void clearCurrent() { eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT); }
-
-    void swapBuffers() {
+    void endFrame() {
         if (!eglSwapBuffers(_disp, _surf)) {
             int error = eglGetError();
             LGI_LOGE("Post record render swap fail. ERROR: %x", error);
         }
     }
+
+    static void clearCurrent() { eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT); }
 
 private:
     // The context represented by this object.
@@ -1468,17 +1491,14 @@ private:
     "RenderContext is not implemented for current platform. Enable GLFW3 feature of the litespd-gl library to fix this."
 #endif
 
-RenderContext::RenderContext(Type t, WindowHandle w) {
+RenderContext::RenderContext(const CreateParams & cp) {
     // store current context
     RenderContextStack rcs;
     rcs.push();
-
-    _impl = new Impl(w, t == SHARED);
-    makeCurrent();
+    _impl = new Impl(cp);
 #if LITESPD_GL_ENABLE_GLAD
     initGlad();
 #endif
-
     // switch back to previous context
     rcs.pop();
 }
@@ -1494,11 +1514,11 @@ RenderContext & RenderContext::operator=(RenderContext && that) {
     }
     return *this;
 }
-void RenderContext::makeCurrent() { _impl->makeCurrent(); }
-void RenderContext::clearCurrent() { Impl::clearCurrent(); }
-void RenderContext::swapBuffers() {
-    if (_impl) _impl->swapBuffers();
+bool RenderContext::beginFrame() { return _impl->beginFrame(); }
+void RenderContext::endFrame() {
+    if (_impl) _impl->endFrame();
 }
+void RenderContext::clearCurrent() { Impl::clearCurrent(); }
 
 class RenderContextStack::Impl {
     struct OpenGLRC {

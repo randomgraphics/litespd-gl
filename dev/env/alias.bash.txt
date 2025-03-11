@@ -1,6 +1,6 @@
 alias g="git"
-alias b="build.py"
-alias m="build.py -m"
+alias b="build.sh"
+alias m="build.sh -m"
 alias j.root="cd ${LITESPD_GL_ROOT}/"
 alias j.build="cd ${LITESPD_GL_ROOT}/build/"
 alias j.dev="cd ${LITESPD_GL_ROOT}/dev/"
