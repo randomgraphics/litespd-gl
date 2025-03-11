@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sys, subprocess, pathlib, pprint, termcolor, os, platform
+import sys, subprocess, pathlib, pprint, os, platform
 from re import search
 
 
@@ -9,17 +9,21 @@ class FatalError(RuntimeError):
         super(FatalError, self).__init__(message)
 
 
+def colored_print(message, color):
+    print(f"\033[{color}{message}[0m")
+
+
 def rip(message, exit_code=-1):
-    print(termcolor.colored("\n\n[  FATAL] {0}\n\n".format(message), "magenta"))
+    colored_print("\n\n[  FATAL] {0}\n\n".format(message), "35m")  # magenta
     sys.exit(exit_code)
 
 
 def loge(message):
-    print(termcolor.colored("[  ERROR] {0}".format(message), "red"))
+    colored_print("[  ERROR] {0}".format(message), "31m")  # red
 
 
 def logw(message):
-    print(termcolor.colored("[WARNING] {0}".format(message), "yellow"))
+    colored_print("[WARNING] {0}".format(message), "33m")  # yellow
 
 
 def logi(message):

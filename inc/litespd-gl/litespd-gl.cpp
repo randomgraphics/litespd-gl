@@ -1151,15 +1151,11 @@ std::string GpuTimestamps::print(const char * ident) const {
 class RenderContext::Impl {
 public:
     Impl(const RenderContext::CreateParams & cp) {
-        if (cp.externalWindow) {
-            LGI_THROW("External window is not supported in GLFW3 backend.");
-        }
+        if (cp.externalWindow) { LGI_THROW("External window is not supported in GLFW3 backend."); }
         GLFWwindow * current = nullptr;
         if (cp.shared) {
             current = glfwGetCurrentContext();
-            if (!current) {
-                LGI_THROW("No current GLFW window found.");
-            }
+            if (!current) { LGI_THROW("No current GLFW window found."); }
         } else {
             glfwInit();
         }
@@ -1167,10 +1163,10 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // Required on macOS
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on macOS
 #endif
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        _window = glfwCreateWindow((int)cp.width, (int)cp.height, "", nullptr, current);
+        _window = glfwCreateWindow((int) cp.width, (int) cp.height, "", nullptr, current);
         if (!_window) LGI_THROW("Failed to create shared GLFW window.");
         glfwShowWindow(_window);
         glfwMakeContextCurrent(_window);

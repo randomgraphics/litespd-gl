@@ -1352,11 +1352,11 @@ public:
     using WindowHandle = intptr_t;
 
     struct CreateParams {
-        uint32_t width = 1280;
-        uint32_t height = 720;
+        uint32_t     width          = 1280;
+        uint32_t     height         = 720;
         WindowHandle externalWindow = 0;
-        bool shared = false; ///< Set to true to create a shared OpenGL context of the current context.
-        bool enableDebug = LITESPD_GL_ENABLE_DEBUG_BUILD;
+        bool         shared         = false; ///< Set to true to create a shared OpenGL context of the current context.
+        bool         enableDebug    = LITESPD_GL_ENABLE_DEBUG_BUILD;
     };
 
     RenderContext(const CreateParams & params);
