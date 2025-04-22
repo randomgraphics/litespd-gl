@@ -7,17 +7,17 @@ struct Scene {
     ~Scene() { quit(); }
 
     bool init() {
-        // create a 4x4 mesh
+        // create a triangle mesh
         return true;
     }
-    
+
     void quit() {
         //
     }
-    
+
     void render() {
         //
-    }        
+    }
 };
 
 int main() {
