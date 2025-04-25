@@ -14,9 +14,9 @@ struct Scene {
 
         // create a triangle mesh
         const litespd::gl::SimpleMesh::Vertex vertices[] = {
-            litespd::gl::SimpleMesh::Vertex::create().setColor({1.0f, 0.0f, 0.0f, 1.0f}),
-            litespd::gl::SimpleMesh::Vertex::create().setColor({0.0f, 1.0f, 0.0f, 1.0f}),
-            litespd::gl::SimpleMesh::Vertex::create().setColor({0.0f, 0.0f, 1.0f, 1.0f}),
+            litespd::gl::SimpleMesh::Vertex::create().setPosition({+0.f, +.5f, .0f}).setColor({1.0f, 0.0f, 0.0f, 1.0f}),
+            litespd::gl::SimpleMesh::Vertex::create().setPosition({-.5f, -.5f, .0f}).setColor({0.0f, 1.0f, 0.0f, 1.0f}),
+            litespd::gl::SimpleMesh::Vertex::create().setPosition({+.5f, -.5f, .0f}).setColor({0.0f, 0.0f, 1.0f, 1.0f}),
         };
         tri.allocate(litespd::gl::SimpleMesh::AllocateParameters().setVertices(std::size(vertices), vertices));
 
