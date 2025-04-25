@@ -98,7 +98,7 @@ std::string ns2str(uint64_t ns) {
 
 } // namespace lgi
 
-#if LITESPD_GL_ENABLE_DEBUG_BUILD && LITESPD_GL_ENABLE_GLAD
+#if LITESPD_GL_ENABLE_GLAD
 // -----------------------------------------------------------------------------
 //
 static void initializeOpenGLDebugRuntime() {
@@ -352,10 +352,6 @@ void initGlad(bool printExtensionList) {
     LGI_CHK(gladLoadGLES2Loader(gpa));
 #else
     LGI_CHK(gladLoadGL());
-#endif
-
-#if LITESPD_GL_ENABLE_DEBUG_BUILD
-    initializeOpenGLDebugRuntime();
 #endif
 
     printGLInfo(printExtensionList);
@@ -1175,7 +1171,7 @@ void GpuTimeElapsedQuery::stop() {
 
 // -----------------------------------------------------------------------------
 //
-std::string GpuTimeElapsedQuery::print() const { return lgi::format("%s : %s"), name.c_str(), lgi::ns2str(duration()).c_str(); }
+std::string GpuTimeElapsedQuery::print() const { return lgi::format("%s : %s", name.c_str(), lgi::ns2str(duration()).c_str()); }
 
 // -----------------------------------------------------------------------------
 //
@@ -1555,15 +1551,20 @@ private:
 #endif
 
 RenderContext::RenderContext(const CreateParams & cp) {
-    // store current context
-    RenderContextStack rcs;
-    rcs.push();
+    // // store current context
+    // RenderContextStack rcs;
+    // rcs.push();
+
+    // initialize the actual context
     _impl = new Impl(cp);
 #if LITESPD_GL_ENABLE_GLAD
     initGlad();
+    if (cp.debug) initializeOpenGLDebugRuntime();
 #endif
-    // switch back to previous context
-    rcs.pop();
+    LGI_CHK(;); // make sure we have no errors.
+
+    // // switch back to previous context
+    // rcs.pop();
 }
 RenderContext::~RenderContext() {
     delete _impl;

@@ -120,7 +120,7 @@ SOFTWARE.
 #ifndef LITESPD_GL_ASSERT
 #define LITESPD_GL_ASSERT(expression, ...)                                         \
     if (!(expression)) {                                                           \
-        auto errorMessage__ = LITESPD_GL_NAMESPACE::format(__VA_ARGS__);           \
+        auto errorMessage__ = LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__);      \
         LGI_LOGE("Condition " #expression " not met. %s", errorMessage__.c_str()); \
         assert(false);                                                             \
     } else                                                                         \
@@ -186,7 +186,7 @@ SOFTWARE.
 #define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
-#define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
+#define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #else
 #define LGI_LOGD(...) void(0)
 #endif
@@ -1131,7 +1131,7 @@ struct SimpleMesh {
     GLuint                                va = 0;
     BufferObject<GL_ARRAY_BUFFER>         vb;
     BufferObject<GL_ELEMENT_ARRAY_BUFFER> ib;
-    bool                                  indexSize;
+    GLuint                                indexSize;
     GLenum                                indexType;
 
     SimpleMesh() {}
@@ -1489,7 +1489,7 @@ public:
         uint32_t     height         = 720;
         WindowHandle externalWindow = 0;
         bool         shared         = false; ///< Set to true to create a shared OpenGL context of the current context.
-        bool         enableDebug    = LITESPD_GL_ENABLE_DEBUG_BUILD;
+        bool         debug          = LITESPD_GL_ENABLE_DEBUG_BUILD;
     };
 
     RenderContext(const CreateParams & params);

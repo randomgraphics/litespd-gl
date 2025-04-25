@@ -9,6 +9,9 @@ struct Scene {
     ~Scene() { quit(); }
 
     bool init() {
+        // should have no GL errors.
+        LGI_CHK(;);
+
         // create a triangle mesh
         const litespd::gl::SimpleMesh::Vertex vertices[] = {
             litespd::gl::SimpleMesh::Vertex::create().setColor({1.0f, 0.0f, 0.0f, 1.0f}),
@@ -18,7 +21,9 @@ struct Scene {
         tri.allocate(litespd::gl::SimpleMesh::AllocateParameters().setVertices(std::size(vertices), vertices));
 
         // create a GPU program
-        const char * vs = R"(#version 320
+        const char * vs = R"(
+            #version 150
+            #extension GL_ARB_explicit_attrib_location : enable
             layout(location = 0) in vec4 a_position; // position is at location 0 in SimpleMesh::Vertex
             layout(location = 3) in vec4 a_color; // color is at location 3 in SimpleMesh::Vertex
             out vec4 v_color;
@@ -27,7 +32,8 @@ struct Scene {
                 v_color = a_color;
             }
         )";
-        const char * ps = R"(#version 320
+        const char * ps = R"(
+            #version 150
             precision mediump float;
             in vec4 v_color;
             out vec4 o_color;
