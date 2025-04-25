@@ -69,9 +69,7 @@ std::string format(const char * fmt, ...) {
 std::tuple<const char *, size_t> trim(const char * str, size_t length) {
     if (!str || !*str) return {str, 0};
     if (0 == length) length = strlen(str);
-    while (length > 0 && isspace(str[length - 1])) {
-        --length;
-    }
+    while (length > 0 && isspace(str[length - 1])) { --length; }
     while (length > 0 && isspace(*str)) {
         ++str;
         --length;
@@ -236,7 +234,13 @@ static void initializeOpenGLDebugRuntime() {
     if (GLAD_GL_KHR_debug) {
         LGI_CHK(glDebugMessageCallback(&OGLDebugOutput::messageCallback, nullptr));
         LGI_CHK(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
-        LGI_LOGI("OpenGL KHR_debug debug output enabled");
+        LGI_CHK(glDebugMessageControl(GL_DONT_CARE, // source
+                                      GL_DONT_CARE, // type
+                                      GL_DONT_CARE, // severity
+                                      0,            // count
+                                      nullptr,      // ids
+                                      GL_TRUE));
+        LGI_LOGI("OpenGL KHR_debug enabled");
     } else if (GLAD_GL_ARB_debug_output) {
         LGI_CHK(glDebugMessageCallbackARB(&OGLDebugOutput::messageCallback, nullptr));
         // enable all messages
@@ -246,7 +250,7 @@ static void initializeOpenGLDebugRuntime() {
                                          0,            // count
                                          nullptr,      // ids
                                          GL_TRUE));
-        LGI_LOGI("OpenGL ARB_debug_output debug output enabled");
+        LGI_LOGI("OpenGL ARB_debug_output enabled");
     }
 }
 
@@ -926,7 +930,8 @@ GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderTyp
                  "\n============================= GLSL shader source ===============================\n"
                  "%s\n"
                  "\n================================================================================\n",
-                 shaderType2String(shaderType), (optionalFilename && *optionalFilename) ? optionalFilename : "<no-name>", infoLog, addLineCount(source).c_str());
+                 shaderType2String(shaderType), (optionalFilename && *optionalFilename) ? optionalFilename : "<no-name>", infoLog,
+                 addLineCount(trimmed).c_str());
         return 0;
     }
 
@@ -1309,6 +1314,10 @@ public:
         }
         if (!wglShareLists(currentRC, _rc)) {
             LGI_LOGE("wglShareLists failed!");
+            return false;
+        }
+        if (!wglMakeCurrent(_dc, _rc)) {
+            LGI_LOGE("wglMakeCurrent() failed.");
             return false;
         }
         return true;

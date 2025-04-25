@@ -18,8 +18,7 @@ struct Scene {
         tri.allocate(litespd::gl::SimpleMesh::AllocateParameters().setVertices(std::size(vertices), vertices));
 
         // create a GPU program
-        const char * vs = R"(
-            #version 320
+        const char * vs = R"(#version 320
             layout(location = 0) in vec4 a_position; // position is at location 0 in SimpleMesh::Vertex
             layout(location = 3) in vec4 a_color; // color is at location 3 in SimpleMesh::Vertex
             out vec4 v_color;
@@ -28,8 +27,7 @@ struct Scene {
                 v_color = a_color;
             }
         )";
-        const char * ps = R"(
-            #version 320
+        const char * ps = R"(#version 320
             precision mediump float;
             in vec4 v_color;
             out vec4 o_color;
