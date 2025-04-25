@@ -1,6 +1,8 @@
 #include "../lgl.h"
 
 struct Scene {
+    litespd::gl::SimpleMesh        tri;
+    litespd::gl::SimpleGlslProgram program;
 
     Scene() = default;
 
@@ -8,15 +10,45 @@ struct Scene {
 
     bool init() {
         // create a triangle mesh
+        const litespd::gl::SimpleMesh::Vertex vertices[] = {
+            litespd::gl::SimpleMesh::Vertex::create().setColor({1.0f, 0.0f, 0.0f, 1.0f}),
+            litespd::gl::SimpleMesh::Vertex::create().setColor({0.0f, 1.0f, 0.0f, 1.0f}),
+            litespd::gl::SimpleMesh::Vertex::create().setColor({0.0f, 0.0f, 1.0f, 1.0f}),
+        };
+        tri.allocate(litespd::gl::SimpleMesh::AllocateParameters().setVertices(std::size(vertices), vertices));
+
+        // create a GPU program
+        const char * vs = R"(
+            #version 320
+            layout(location = 0) in vec4 a_position; // position is at location 0 in SimpleMesh::Vertex
+            layout(location = 3) in vec4 a_color; // color is at location 3 in SimpleMesh::Vertex
+            out vec4 v_color;
+            void main() {
+                gl_Position = a_position;
+                v_color = a_color;
+            }
+        )";
+        const char * ps = R"(
+            #version 320
+            precision mediump float;
+            in vec4 v_color;
+            out vec4 o_color;
+            void main() {
+                o_color = v_color;
+            }
+        )";
+        program.loadVsPs(vs, ps);
         return true;
     }
 
     void quit() {
-        //
+        tri.cleanup();
+        program.cleanup();
     }
 
     void render() {
-        //
+        program.use();
+        tri.draw();
     }
 };
 

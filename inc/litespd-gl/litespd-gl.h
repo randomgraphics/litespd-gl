@@ -1054,6 +1054,77 @@ struct SimpleMesh {
         glm::vec4 color;
         glm::vec2 uv0;
         glm::vec2 uv1;
+
+        static Vertex create(const glm::vec3 & p = glm::vec3(0.f), const glm::vec3 & n = glm::vec3(0.f, 0.f, 0.f), const glm::vec3 & t = glm::vec3(0.f),
+                             const glm::vec4 & c = glm::vec4(0.f), const glm::vec2 & uv0 = glm::vec2(0.f), const glm::vec2 & uv1 = glm::vec2(0.f)) {
+            return {p, n, t, c, uv0, uv1};
+        }
+
+        Vertex & setPosition(const glm::vec3 & p) {
+            position = p;
+            return *this;
+        }
+
+        Vertex setPosition(const glm::vec3 & p) const {
+            Vertex v   = *this;
+            v.position = p;
+            return v;
+        }
+
+        Vertex & setNormal(const glm::vec3 & n) {
+            normal = n;
+            return *this;
+        }
+
+        Vertex setNormal(const glm::vec3 & n) const {
+            Vertex v = *this;
+            v.normal = glm::vec3(n);
+            return v;
+        }
+
+        Vertex & setTangent(const glm::vec3 & t) {
+            tangent = t;
+            return *this;
+        }
+
+        Vertex setTangent(const glm::vec3 & t) const {
+            Vertex v  = *this;
+            v.tangent = t;
+            return v;
+        }
+
+        Vertex & setColor(const glm::vec4 & c) {
+            color = c;
+            return *this;
+        }
+
+        Vertex setColor(const glm::vec4 & c) const {
+            Vertex v = *this;
+            v.color  = c;
+            return v;
+        }
+
+        Vertex & setUV0(const glm::vec2 & uv) {
+            uv0 = uv;
+            return *this;
+        }
+
+        Vertex setUV0(const glm::vec2 & uv) const {
+            Vertex v = *this;
+            v.uv0    = uv;
+            return v;
+        }
+
+        Vertex & setUV1(const glm::vec2 & uv) {
+            uv1 = uv;
+            return *this;
+        }
+
+        Vertex setUV1(const glm::vec2 & uv) const {
+            Vertex v = *this;
+            v.uv1    = uv;
+            return v;
+        }
     };
 
     // vertex array
@@ -1068,12 +1139,32 @@ struct SimpleMesh {
     ~SimpleMesh() { cleanup(); }
 
     struct AllocateParameters {
-        size_t           vertexCount = 3;       ///< 1 triangle by default.
+        size_t           vertexCount = 0;       ///< vertex count.
         const void *     vertices    = nullptr; ///< if not null, must contain enough data specified by vertexCount.
         size_t           indexCount  = 0;       ///< non-indexed by default.
         const uint32_t * index32     = nullptr; ///< If not null, must contain enough 32-bit indices specified by indexCount.
         const uint16_t * index16     = nullptr; ///< Ignored if index32 is not null. Or else, if not null, must contain
                                                 ///< enough 16-bit indices specified by indexCount;
+
+        AllocateParameters & setVertices(size_t count, const void * ptr) {
+            vertexCount = count;
+            vertices    = (count > 0) ? ptr : nullptr;
+            return *this;
+        }
+
+        AllocateParameters & setIndex32(size_t count, const uint32_t * ptr) {
+            indexCount = count;
+            index32    = (count > 0) ? ptr : nullptr;
+            index16    = nullptr;
+            return *this;
+        }
+
+        AllocateParameters & setIndex16(size_t count, const uint16_t * ptr) {
+            indexCount = count;
+            index32    = nullptr;
+            index16    = (count > 0) ? ptr : nullptr;
+            return *this;
+        }
     };
 
     SimpleMesh & allocate(const AllocateParameters &);

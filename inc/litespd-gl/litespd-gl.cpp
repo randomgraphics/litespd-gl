@@ -45,6 +45,7 @@ SOFTWARE.
 extern "C" __declspec(dllimport) void __stdcall DebugBreak();
 #endif
 
+#include <array> // for std::size
 #include <atomic>
 #include <stack>
 #include <algorithm>
@@ -62,6 +63,20 @@ std::string format(const char * fmt, ...) {
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     return buffer;
+}
+
+// Trim the string
+std::tuple<const char *, size_t> trim(const char * str, size_t length) {
+    if (!str || !*str) return {str, 0};
+    if (0 == length) length = strlen(str);
+    while (length > 0 && isspace(str[length - 1])) {
+        --length;
+    }
+    while (length > 0 && isspace(*str)) {
+        ++str;
+        --length;
+    }
+    return {str, length};
 }
 
 // convert nanoseconds (10^-9) to string
@@ -221,6 +236,7 @@ static void initializeOpenGLDebugRuntime() {
     if (GLAD_GL_KHR_debug) {
         LGI_CHK(glDebugMessageCallback(&OGLDebugOutput::messageCallback, nullptr));
         LGI_CHK(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
+        LGI_LOGI("OpenGL KHR_debug debug output enabled");
     } else if (GLAD_GL_ARB_debug_output) {
         LGI_CHK(glDebugMessageCallbackARB(&OGLDebugOutput::messageCallback, nullptr));
         // enable all messages
@@ -230,6 +246,7 @@ static void initializeOpenGLDebugRuntime() {
                                          0,            // count
                                          nullptr,      // ids
                                          GL_TRUE));
+        LGI_LOGI("OpenGL ARB_debug_output debug output enabled");
     }
 }
 
@@ -883,27 +900,33 @@ static std::string addLineCount(const std::string & in) {
 // -----------------------------------------------------------------------------
 //
 GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderType, const char * optionalFilename) {
-    if (!source) return 0;
-    const char * sources[] = {source};
-    if (0 == length) length = strlen(source);
-    GLint sizes[] = {(GLint) length};
+    if (!source || !*source) {
+        LGI_LOGE("Empty shader source");
+        return 0;
+    }
+    auto [trimmed, trimmedLength] = lgi::trim(source, length);
+    if (0 == trimmedLength) {
+        LGI_LOGE("Empty shader source");
+        return 0;
+    }
+    GLint sizes[] = {(GLint) trimmedLength};
     auto  shader  = glCreateShader(shaderType);
-    glShaderSource(shader, 1, sources, sizes);
-    glCompileShader(shader);
+    LGI_CHK(glShaderSource(shader, 1, &trimmed, sizes));
+    LGI_CHK(glCompileShader(shader));
 
     // check for shader compile errors
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (GL_TRUE != success) {
-        char infoLog[512];
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
+        static thread_local char infoLog[4096];
+        glGetShaderInfoLog(shader, 4096, NULL, infoLog);
         glDeleteShader(shader);
         LGI_LOGE("\n================== Failed to compile %s shader '%s' ====================\n"
                  "%s\n"
                  "\n============================= GLSL shader source ===============================\n"
                  "%s\n"
                  "\n================================================================================\n",
-                 shaderType2String(shaderType), optionalFilename ? optionalFilename : "<no-name>", infoLog, addLineCount(source).c_str());
+                 shaderType2String(shaderType), (optionalFilename && *optionalFilename) ? optionalFilename : "<no-name>", infoLog, addLineCount(source).c_str());
         return 0;
     }
 
@@ -927,7 +950,7 @@ GLuint linkProgram(const std::vector<GLuint> & shaders, const char * optionalPro
         char infoLog[512];
         glGetProgramInfoLog(program, 512, NULL, infoLog);
         glDeleteProgram(program);
-        LGI_LOGE("Failed to link program %s:\n%s", optionalProgramName ? optionalProgramName : "", infoLog);
+        LGI_LOGE("Failed to link program %s:\n%s", (optionalProgramName && *optionalProgramName) ? optionalProgramName : "no-name", infoLog);
         return 0;
     }
 
