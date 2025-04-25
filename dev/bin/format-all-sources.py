@@ -168,12 +168,13 @@ def format_all(dry_run=False, diff_only=False, quiet=False):
     # Determine clang-format binary
     system = platform.system()
     if "Windows" == system:
-        clang_format = str(root_dir / "dev/bin/clang-format-14.0.0.exe")
+        clang_format = str(root_dir / "dev/bin/clang-format-14.exe")
     elif "Darwin" == system:
         clang_format = str(root_dir / "dev/bin/clang-format-apple-darwin-14.0.0")
     else:
         # Assume Linux system. Use clang-format-14 installed by apt
         clang_format = "clang-format-14"
+    print(f"using clang-format: {clang_format}")
 
     # create a lock to serialize output
     lock = threading.Lock()

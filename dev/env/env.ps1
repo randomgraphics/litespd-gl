@@ -53,17 +53,6 @@ if ( $env:USERNAME -eq "ContainerAdministrator" ) {
 }
 
 # ==============================================================================
-# Setup Vulkan SDK
-# ==============================================================================
-
-if (-not $(test-path env:VULKAN_SDK)) {
-    write-host -ForegroundColor red -NoNewline "Environment variable VULKAN_SDK is not set. Please download and install the latest Vulkan SDK."
-}
-elseif (-not $(test-path $env:VULKAN_SDK)) {
-    fatal "Environment variable VULKAN_SDK is not pointing to valid folder."
-}
-
-# ==============================================================================
 # Check Python support
 # ==============================================================================
 
@@ -156,6 +145,5 @@ write-host -ForegroundColor green "
 Litespd GL build environment ready to use. Happy coding!
 
 LITESPD_GL_ROOT = $env:LITESPD_GL_ROOT
-VULKAN_SDK        = $env:VULKAN_SDK
-USERNAME          = $env:USERNAME
+USERNAME        = $env:USERNAME
 "

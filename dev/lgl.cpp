@@ -7,7 +7,9 @@
 #include <cxxabi.h>
 #else
 #if defined(_MSC_VER)
-#pragma warning(disable : 4996)
+// disable some backward.hpp warnings reporeted by MSVC
+#pragma warning(disable : 4996) // 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead.
+#pragma warning(disable : 4267) // conversion from 'size_t' to 'unsigned int', possible loss of data
 #endif
 #include "3rd-party/backward-cpp/backward.hpp"
 #endif

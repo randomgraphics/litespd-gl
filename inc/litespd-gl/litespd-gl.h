@@ -120,7 +120,7 @@ SOFTWARE.
 #ifndef LITESPD_GL_ASSERT
 #define LITESPD_GL_ASSERT(expression, ...)                                         \
     if (!(expression)) {                                                           \
-        auto errorMessage__ = LITESPD_GL_NAMESPACE::format(__VA_ARGS__);           \
+        auto errorMessage__ = LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__);      \
         LGI_LOGE("Condition " #expression " not met. %s", errorMessage__.c_str()); \
         assert(false);                                                             \
     } else                                                                         \
@@ -186,7 +186,7 @@ SOFTWARE.
 #define LGI_LOGI(...) LITESPD_GL_LOG_INFO(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #define LGI_LOGV(...) LITESPD_GL_LOG_VERBOSE(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #if LITESPD_GL_ENABLE_DEBUG_BUILD
-#define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::format(__VA_ARGS__).c_str())
+#define LGI_LOGD(...) LITESPD_GL_LOG_DEBUG(LITESPD_GL_NAMESPACE::lgi::format(__VA_ARGS__).c_str())
 #else
 #define LGI_LOGD(...) void(0)
 #endif
@@ -275,8 +275,7 @@ void initGlad(bool printGLInfo = false);
 
 // The 'optionalFilename' parameter is optional and is only used when printing
 // shader compilation error.
-GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderType,
-                            const char * optionalFilename = nullptr);
+GLuint loadShaderFromString(const char * source, size_t length, GLenum shaderType, const char * optionalFilename = nullptr);
 
 // the program name parameter is optional and is only used to print link error.
 GLuint linkProgram(const std::vector<GLuint> & shaders, const char * optionalProgramName = nullptr);
@@ -467,16 +466,17 @@ struct BufferObject {
 
     static GLenum GetTarget() { return TARGET; }
 
-    template<typename T, GLenum T2 = TARGET>
-    void allocate(size_t count, const T * ptr, GLenum usage = GL_STATIC_DRAW) {
+    template<GLenum T = TARGET>
+    void allocate(size_t size, size_t count, const void * ptr, GLenum usage = GL_STATIC_DRAW) {
         cleanup();
+        if (0 == size * count) return;
         LGI_CHK(glGenBuffers(1, &bo));
         // Note: ARM Mali GPU doesn't work well with zero sized buffers. So
         // we create buffer that is large enough to hold at least one element.
-        length = std::max(count, MIN_GPU_BUFFER_LENGH) * sizeof(T);
-        LGI_CHK(glBindBuffer(T2, bo));
-        LGI_CHK(glBufferData(T2, (GLsizeiptr) length, ptr, usage));
-        LGI_CHK(glBindBuffer(T2, 0)); // unbind
+        length = std::max(count, MIN_GPU_BUFFER_LENGH) * size;
+        LGI_CHK(glBindBuffer(T, bo));
+        LGI_CHK(glBufferData(T, (GLsizeiptr) length, ptr, usage));
+        LGI_CHK(glBindBuffer(T, 0)); // unbind
     }
 
     void cleanup() {
@@ -511,8 +511,7 @@ struct BufferObject {
     void getData(T * ptr, size_t offset, size_t count) {
         LGI_DCHK(glBindBuffer(T2, bo));
         void * mapped = nullptr;
-        LGI_DCHK(mapped = glMapBufferRange(T2, (GLintptr) (offset * sizeof(T)), (GLsizeiptr) (count * sizeof(T)),
-                                           GL_MAP_READ_BIT));
+        LGI_DCHK(mapped = glMapBufferRange(T2, (GLintptr) (offset * sizeof(T)), (GLsizeiptr) (count * sizeof(T)), GL_MAP_READ_BIT));
         if (mapped) {
             std::memcpy(ptr, mapped, count * sizeof(T));
             LGI_DCHK(glUnmapBuffer(T2));
@@ -769,8 +768,7 @@ public:
                    GLenum format, GLenum type) const;
 
     // Set to rowPitchInBytes 0, if pixels are tightly packed.
-    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels,
-                   size_t rowLength, GLenum format, GLenum type) const;
+    void setPixels(size_t layer, size_t level, size_t x, size_t y, size_t w, size_t h, const void * pixels, size_t rowLength, GLenum format, GLenum type) const;
 
     // jedi::ManagedRawImage getBaseLevelPixels() const;
 
@@ -968,7 +966,7 @@ struct DebugSSBO {
         buffer.resize(n + 1);
         printed.resize(buffer.size());
         counter = (int *) &buffer[0];
-        g.allocate(buffer.size(), buffer.data(), GL_STATIC_READ);
+        g.allocate(sizeof(float), buffer.size(), buffer.data(), GL_STATIC_READ);
 #else
         (void) n;
 #endif
@@ -1017,8 +1015,8 @@ struct ScreenQuad {
     };
 
     // vertex array
-    GLuint                            va = 0;
-    gl::BufferObject<GL_ARRAY_BUFFER> vb;
+    GLuint                        va = 0;
+    BufferObject<GL_ARRAY_BUFFER> vb;
 
     ScreenQuad() {}
 
@@ -1044,6 +1042,144 @@ struct ScreenQuad {
         LGI_ASSERT(va);
         LGI_DCHK(glBindVertexArray(va));
         LGI_DCHK(glDrawArrays(GL_TRIANGLES, 0, 6));
+        return *this;
+    }
+};
+
+struct SimpleMesh {
+    struct Vertex {
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec3 tangent;
+        glm::vec4 color;
+        glm::vec2 uv0;
+        glm::vec2 uv1;
+
+        static Vertex create(const glm::vec3 & p = glm::vec3(0.f), const glm::vec3 & n = glm::vec3(0.f, 0.f, 0.f), const glm::vec3 & t = glm::vec3(0.f),
+                             const glm::vec4 & c = glm::vec4(0.f), const glm::vec2 & uv0 = glm::vec2(0.f), const glm::vec2 & uv1 = glm::vec2(0.f)) {
+            return {p, n, t, c, uv0, uv1};
+        }
+
+        Vertex & setPosition(const glm::vec3 & p) {
+            position = p;
+            return *this;
+        }
+
+        Vertex setPosition(const glm::vec3 & p) const {
+            Vertex v   = *this;
+            v.position = p;
+            return v;
+        }
+
+        Vertex & setNormal(const glm::vec3 & n) {
+            normal = n;
+            return *this;
+        }
+
+        Vertex setNormal(const glm::vec3 & n) const {
+            Vertex v = *this;
+            v.normal = glm::vec3(n);
+            return v;
+        }
+
+        Vertex & setTangent(const glm::vec3 & t) {
+            tangent = t;
+            return *this;
+        }
+
+        Vertex setTangent(const glm::vec3 & t) const {
+            Vertex v  = *this;
+            v.tangent = t;
+            return v;
+        }
+
+        Vertex & setColor(const glm::vec4 & c) {
+            color = c;
+            return *this;
+        }
+
+        Vertex setColor(const glm::vec4 & c) const {
+            Vertex v = *this;
+            v.color  = c;
+            return v;
+        }
+
+        Vertex & setUV0(const glm::vec2 & uv) {
+            uv0 = uv;
+            return *this;
+        }
+
+        Vertex setUV0(const glm::vec2 & uv) const {
+            Vertex v = *this;
+            v.uv0    = uv;
+            return v;
+        }
+
+        Vertex & setUV1(const glm::vec2 & uv) {
+            uv1 = uv;
+            return *this;
+        }
+
+        Vertex setUV1(const glm::vec2 & uv) const {
+            Vertex v = *this;
+            v.uv1    = uv;
+            return v;
+        }
+    };
+
+    // vertex array
+    GLuint                                va = 0;
+    BufferObject<GL_ARRAY_BUFFER>         vb;
+    BufferObject<GL_ELEMENT_ARRAY_BUFFER> ib;
+    GLuint                                indexSize;
+    GLenum                                indexType;
+
+    SimpleMesh() {}
+
+    ~SimpleMesh() { cleanup(); }
+
+    struct AllocateParameters {
+        size_t           vertexCount = 0;       ///< vertex count.
+        const void *     vertices    = nullptr; ///< if not null, must contain enough data specified by vertexCount.
+        size_t           indexCount  = 0;       ///< non-indexed by default.
+        const uint32_t * index32     = nullptr; ///< If not null, must contain enough 32-bit indices specified by indexCount.
+        const uint16_t * index16     = nullptr; ///< Ignored if index32 is not null. Or else, if not null, must contain
+                                                ///< enough 16-bit indices specified by indexCount;
+
+        AllocateParameters & setVertices(size_t count, const void * ptr) {
+            vertexCount = count;
+            vertices    = (count > 0) ? ptr : nullptr;
+            return *this;
+        }
+
+        AllocateParameters & setIndex32(size_t count, const uint32_t * ptr) {
+            indexCount = count;
+            index32    = (count > 0) ? ptr : nullptr;
+            index16    = nullptr;
+            return *this;
+        }
+
+        AllocateParameters & setIndex16(size_t count, const uint16_t * ptr) {
+            indexCount = count;
+            index32    = nullptr;
+            index16    = (count > 0) ? ptr : nullptr;
+            return *this;
+        }
+    };
+
+    SimpleMesh & allocate(const AllocateParameters &);
+
+    SimpleMesh & cleanup();
+
+    const SimpleMesh & draw() const {
+        LGI_ASSERT(va);
+        LGI_DCHK(glBindVertexArray(va));
+        if (ib) {
+            LGI_DCHK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ib));
+            LGI_DCHK(glDrawElements(GL_TRIANGLES, (GLsizei) (ib.length / indexSize), indexType, 0));
+        } else {
+            LGI_DCHK(glDrawArrays(GL_TRIANGLES, 0, (GLsizei) (vb.length / sizeof(Vertex))));
+        }
         return *this;
     }
 };
@@ -1135,9 +1271,8 @@ public:
 
 class SimpleUniform {
 public:
-    using Value =
-        std::variant<int, unsigned int, float, glm::vec2, glm::vec3, glm::vec4, glm::ivec2, glm::ivec3, glm::ivec4,
-                     glm::uvec2, glm::uvec3, glm::uvec4, glm::mat3x3, glm::mat4x4, std::vector<float>>;
+    using Value = std::variant<int, unsigned int, float, glm::vec2, glm::vec3, glm::vec4, glm::ivec2, glm::ivec3, glm::ivec4, glm::uvec2, glm::uvec3,
+                               glm::uvec4, glm::mat3x3, glm::mat4x4, std::vector<float>>;
 
     Value value;
 
@@ -1213,8 +1348,7 @@ public:
     ~SimpleSprite() { cleanup(); }
     bool init();
     void cleanup();
-    void draw(GLuint texture, const glm::vec4 & pos = ScreenQuad::fullScreen(),
-              const glm::vec4 & uv = ScreenQuad::fullTexture());
+    void draw(GLuint texture, const glm::vec4 & pos = ScreenQuad::fullScreen(), const glm::vec4 & uv = ScreenQuad::fullTexture());
 };
 
 class SimpleTextureCopy {
@@ -1242,8 +1376,7 @@ public:
                     // TODO: uint32_t x, y, w, h;
     };
     void copy(const TextureSubResource & src, const TextureSubResource & dst);
-    void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel,
-              uint32_t dstZ) {
+    void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel, uint32_t dstZ) {
         auto & s = src.getDesc();
         auto & d = dst.getDesc();
         copy({s.target, s.id, srcLevel, srcZ}, {d.target, d.id, dstLevel, dstZ});
@@ -1356,7 +1489,7 @@ public:
         uint32_t     height         = 720;
         WindowHandle externalWindow = 0;
         bool         shared         = false; ///< Set to true to create a shared OpenGL context of the current context.
-        bool         enableDebug    = LITESPD_GL_ENABLE_DEBUG_BUILD;
+        bool         debug          = LITESPD_GL_ENABLE_DEBUG_BUILD;
     };
 
     RenderContext(const CreateParams & params);
@@ -1370,7 +1503,7 @@ public:
 
     // frame management
     bool beginFrame(); ///< Begin a new frame. Should be called in pair with endFrame if it returns true.
-    void endFrame();   ///< End current frane and present to screen. Must be called in paif with an successfull call to
+    void endFrame();   ///< End current frame and present to screen. Must be called in paif with an successfull call to
                        ///< beginFrame.
 
     // unbound render context from current thread.
