@@ -695,12 +695,19 @@ public:
         cleanup();
         glGenSamplers(1, &_id);
     }
+
     void cleanup() {
         if (_id) glDeleteSamplers(1, &_id), _id = 0;
     }
+
     void bind(size_t unit) const {
         LGI_ASSERT(glIsSampler(_id));
         glBindSampler((GLuint) unit, _id);
+    }
+
+    void setParameter(GLenum pname, GLint param) const {
+        LGI_ASSERT(glIsSampler(_id));
+        glSamplerParameteri(_id, pname, param);
     }
 };
 
@@ -737,21 +744,28 @@ public:
         GLenum   internalFormat;
         uint32_t width;
         uint32_t height;
-        uint32_t depth; // this is number of layers for 2D array texture and is
-                        // always 6 for cube texture.
+        uint32_t depth; // For non-3D texture, this is number of layers/faces of array or cube texture. It is always
+                        // multiple of 6 for cube and cube array texture.
         uint32_t mips;
+
+        bool empty() const { return 0 == id; }
+
+        bool is2D() const { return GL_TEXTURE_2D == target; }
+
+        bool is2DArray() const { return GL_TEXTURE_2D_ARRAY == target; }
+
+        bool isCube() const { return GL_TEXTURE_CUBE_MAP == target; }
+
+        bool isCubeArray() const { return GL_TEXTURE_CUBE_MAP_ARRAY == target; }
     };
 
-    const TextureDesc & getDesc() const { return _desc; }
+    const TextureDesc & desc() const { return _desc; }
 
     GLenum target() const { return _desc.target; }
+
     GLenum id() const { return _desc.id; }
 
-    bool empty() const { return 0 == _desc.id; }
-
-    bool is2D() const { return GL_TEXTURE_2D == _desc.target; }
-
-    bool isArray() const { return GL_TEXTURE_2D_ARRAY == _desc.target; }
+    bool empty() const { return _desc.empty(); }
 
     void attach(GLenum target, GLuint id);
 
@@ -1184,57 +1198,6 @@ struct SimpleMesh {
     }
 };
 
-class SimpleTexture {
-    GLuint   _id = 0;
-    GLenum   _target = GL_TEXTURE_2D;
-    GLenum   _internalFormat = GL_RGBA8;
-    GLenum   _format = GL_RGBA;
-    GLenum   _type = GL_UNSIGNED_BYTE;
-    uint32_t _width = 0, _height = 0;
-    uint32_t _depth = 0; // depth of 3D texture. Must be 1 for non-3D textures.
-    uint32_t _mips = 0; // number of mip levels.
-    uint32_t _faces = 0; // length of array texture. Must be multiple of 6 for cube or cube array texture.
-    bool     _isCube = false; // true if this is a cube texture.
-
-    struct MipIndex {
-        uint32_t level;
-        uint32_t face; // face of cube map, or index into array texture.
-    };
-
-    struct MipImage {
-        const void * pixels = nullptr;
-        GLenum   format = GL_RGBA;
-        GLenum   type   = GL_UNSIGNED_BYTE;
-        uint32_t width = 1;
-        uint32_t height = 1;
-        uint32_t depth = 1;
-    };
-
-    struct Allocate2DParameters {
-        GLenum   internalFormat = GL_RGBA8;
-        uint32_t width          = 1;
-        uint32_t height         = 1;
-        uint32_t array          = 1;
-        uint32_t mips           = 1;
-        const void ** pixels = nullptr;
-    };
-
-    SimpleTexture & allocate(const Allocate2DParameters &);
-
-    SimpleTexture & setMip(const MipIndex &, const MipImage &);
-
-    SimpleTexture & cleanup();
-
-    const SimpleTexture & bind(uint32_t stage) const {
-        if (_id) {
-            glActiveTexture(GLenum(GL_TEXTURE0 + stage));
-            glBindTexture(_target, _id);
-        }
-        return *this;
-    }
-};
-
-
 class SimpleGlslProgram {
     GLuint _program = 0;
 
@@ -1428,8 +1391,8 @@ public:
     };
     void copy(const TextureSubResource & src, const TextureSubResource & dst);
     void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel, uint32_t dstZ) {
-        auto & s = src.getDesc();
-        auto & d = dst.getDesc();
+        auto & s = src.desc();
+        auto & d = dst.desc();
         copy({s.target, s.id, srcLevel, srcZ}, {d.target, d.id, dstLevel, dstZ});
     }
 };
