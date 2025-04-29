@@ -695,12 +695,19 @@ public:
         cleanup();
         glGenSamplers(1, &_id);
     }
+
     void cleanup() {
         if (_id) glDeleteSamplers(1, &_id), _id = 0;
     }
+
     void bind(size_t unit) const {
         LGI_ASSERT(glIsSampler(_id));
         glBindSampler((GLuint) unit, _id);
+    }
+
+    void setParameter(GLenum pname, GLint param) const {
+        LGI_ASSERT(glIsSampler(_id));
+        glSamplerParameteri(_id, pname, param);
     }
 };
 
@@ -737,21 +744,28 @@ public:
         GLenum   internalFormat;
         uint32_t width;
         uint32_t height;
-        uint32_t depth; // this is number of layers for 2D array texture and is
-                        // always 6 for cube texture.
+        uint32_t depth; // For non-3D texture, this is number of layers/faces of array or cube texture. It is always
+                        // multiple of 6 for cube and cube array texture.
         uint32_t mips;
+
+        bool empty() const { return 0 == id; }
+
+        bool is2D() const { return GL_TEXTURE_2D == target; }
+
+        bool is2DArray() const { return GL_TEXTURE_2D_ARRAY == target; }
+
+        bool isCube() const { return GL_TEXTURE_CUBE_MAP == target; }
+
+        bool isCubeArray() const { return GL_TEXTURE_CUBE_MAP_ARRAY == target; }
     };
 
-    const TextureDesc & getDesc() const { return _desc; }
+    const TextureDesc & desc() const { return _desc; }
 
     GLenum target() const { return _desc.target; }
+
     GLenum id() const { return _desc.id; }
 
-    bool empty() const { return 0 == _desc.id; }
-
-    bool is2D() const { return GL_TEXTURE_2D == _desc.target; }
-
-    bool isArray() const { return GL_TEXTURE_2D_ARRAY == _desc.target; }
+    bool empty() const { return _desc.empty(); }
 
     void attach(GLenum target, GLuint id);
 
@@ -1377,8 +1391,8 @@ public:
     };
     void copy(const TextureSubResource & src, const TextureSubResource & dst);
     void copy(const TextureObject & src, uint32_t srcLevel, uint32_t srcZ, const TextureObject & dst, uint32_t dstLevel, uint32_t dstZ) {
-        auto & s = src.getDesc();
-        auto & d = dst.getDesc();
+        auto & s = src.desc();
+        auto & d = dst.desc();
         copy({s.target, s.id, srcLevel, srcZ}, {d.target, d.id, dstLevel, dstZ});
     }
 };
