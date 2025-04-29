@@ -1184,6 +1184,57 @@ struct SimpleMesh {
     }
 };
 
+class SimpleTexture {
+    GLuint   _id = 0;
+    GLenum   _target = GL_TEXTURE_2D;
+    GLenum   _internalFormat = GL_RGBA8;
+    GLenum   _format = GL_RGBA;
+    GLenum   _type = GL_UNSIGNED_BYTE;
+    uint32_t _width = 0, _height = 0;
+    uint32_t _depth = 0; // depth of 3D texture. Must be 1 for non-3D textures.
+    uint32_t _mips = 0; // number of mip levels.
+    uint32_t _faces = 0; // length of array texture. Must be multiple of 6 for cube or cube array texture.
+    bool     _isCube = false; // true if this is a cube texture.
+
+    struct MipIndex {
+        uint32_t level;
+        uint32_t face; // face of cube map, or index into array texture.
+    };
+
+    struct MipImage {
+        const void * pixels = nullptr;
+        GLenum   format = GL_RGBA;
+        GLenum   type   = GL_UNSIGNED_BYTE;
+        uint32_t width = 1;
+        uint32_t height = 1;
+        uint32_t depth = 1;
+    };
+
+    struct Allocate2DParameters {
+        GLenum   internalFormat = GL_RGBA8;
+        uint32_t width          = 1;
+        uint32_t height         = 1;
+        uint32_t array          = 1;
+        uint32_t mips           = 1;
+        const void ** pixels = nullptr;
+    };
+
+    SimpleTexture & allocate(const Allocate2DParameters &);
+
+    SimpleTexture & setMip(const MipIndex &, const MipImage &);
+
+    SimpleTexture & cleanup();
+
+    const SimpleTexture & bind(uint32_t stage) const {
+        if (_id) {
+            glActiveTexture(GLenum(GL_TEXTURE0 + stage));
+            glBindTexture(_target, _id);
+        }
+        return *this;
+    }
+};
+
+
 class SimpleGlslProgram {
     GLuint _program = 0;
 
