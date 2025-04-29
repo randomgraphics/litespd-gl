@@ -1,0 +1,2 @@
+clang-format-14.exe filter=lfs diff=lfs merge=lfs -text
+clang-format-apple-darwin-14.0.0 filter=lfs diff=lfs merge=lfs -text

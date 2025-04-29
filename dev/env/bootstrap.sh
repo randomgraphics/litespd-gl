@@ -24,22 +24,6 @@ else
 fi
 echo dist=$dist
 
-# setup vulkan-sdk source
-if [ "ubuntu_22_04" == $dist ]; then
-    # For Ubuntu 22.04+
-    echo "Add LunarG SDK source to apt registry for Ubuntu 22.04 ..."
-    wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-    sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.239-jammy.list https://packages.lunarg.com/vulkan/1.3.239/lunarg-vulkan-1.3.239-jammy.list
-elif [ "ubuntu_20_04" == $dist ]; then
-    # For Ubuntu 20.04
-    echo "Add LunarG SDK source to apt registry for Ubuntu 20.04 ..."
-    wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
-    sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.239-focal.list https://packages.lunarg.com/vulkan/1.3.239/lunarg-vulkan-1.3.239-focal.list
-else
-    echo "[ERROR] Unrecognized OS version ..."
-    exit -1
-fi
-
 # Add clang-14 to apt repository for Ubuntu 20.04.
 if [ "ubuntu_20_04" == $dist ]; then
     echo "Add clang 14 suite to apt registry for Ubuntu 20.04 ..."
@@ -68,6 +52,5 @@ sudo apt-get update && sudo apt-get install -y \
     clang-14 \
     clang-format-14
 
-# install python modules
+# install pip. The rest of the python dependencies will be installed by the env.rc using pyvenv.
 python3 -m pip install --upgrade pip
-python3 -m pip install --upgrade termcolor
